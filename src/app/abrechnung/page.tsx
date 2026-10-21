@@ -71,7 +71,7 @@ function ChangePlan({ to, billing, onClose }: { to: Plan; billing: Billing; onCl
         </p>
       ) : to.id === "event" ? (
         <>
-          <p className="box-s">{chfShort(to.price)} für ein Turnier: bis {to.limits.maxTeams} Teams, Check-in, Warteliste, eigenes Logo auf dem Beamer und Export.</p>
+          <p className="box-s">{chfShort(to.price)} für ein Turnier: bis {to.limits.maxTeams} Teams, Check-in, Warteliste, eigenes Logo auf dem Beamer und Export. Bezahlen mit Karte oder TWINT.</p>
           <div className="f">
             <label className="f-l" htmlFor="cp-t">
               Für welches Turnier?
@@ -98,13 +98,13 @@ function ChangePlan({ to, billing, onClose }: { to: Plan; billing: Billing; onCl
             </legend>
             <div className="pills">
               <button className="pill" type="button" aria-pressed={payBy === "card"} onClick={() => setPayBy("card")}>
-                Karte oder TWINT
+                Karte
               </button>
               <button className="pill" type="button" aria-pressed={payBy === "invoice"} onClick={() => setPayBy("invoice")}>
                 Rechnung per E-Mail
               </button>
             </div>
-            <span className="f-h">{payBy === "invoice" ? "Du bekommst die Rechnung als PDF, zahlbar innert 30 Tagen." : "Die Zahlung läuft über Stripe."}</span>
+            <span className="f-h">{payBy === "invoice" ? "Du bekommst die Rechnung als PDF, zahlbar innert 30 Tagen." : "Ein Abo mit Karte, über Stripe."}</span>
           </fieldset>
         </>
       )}
@@ -267,7 +267,7 @@ function Billing() {
           </div>
           {pm ? (
             <div className="paym">
-              <span className="cardi">{pm.kind === "card" ? pm.brand.toUpperCase().slice(0, 4) : pm.kind === "twint" ? "TWINT" : "QR"}</span>
+              <span className="cardi" aria-hidden="true">{pm.kind === "card" ? pm.brand.toUpperCase().slice(0, 4) : pm.kind === "twint" ? "TWINT" : <Ic name="mail" small />}</span>
               <div className="grow">
                 <b>{pm.kind === "card" ? `${pm.brand.charAt(0).toUpperCase()}${pm.brand.slice(1)} •••• ${pm.last4}` : pm.kind === "twint" ? "TWINT" : "Rechnung per E-Mail"}</b>
                 {pm.kind === "card" ? (

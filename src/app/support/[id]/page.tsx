@@ -157,7 +157,8 @@ export default function RequestPage({ params }: PageProps<"/support/[id]">) {
           <div className="thread">
             {r.messages.map((m) => {
               const staff = m.kind === "staff";
-              const who = staff ? `${m.author.name.split(" ")[0]} von Planary` : m.author.name;
+              // planary-org already names staff "Mykyta von Planary".
+              const who = m.author.name;
               return (
                 <div className={`msg ${staff ? "us" : "me"}`} key={m.id}>
                   <p className="msg-h">

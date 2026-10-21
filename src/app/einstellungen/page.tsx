@@ -99,7 +99,7 @@ function Settings({ org }: { org: PortalOrg }) {
   const upload = async (f: File | undefined) => {
     if (!f) return;
     if (!["image/png", "image/jpeg"].includes(f.type)) return toast("Logos müssen PNG oder JPG sein.", "err");
-    if (f.size > 10 * 1024 * 1024) return toast("Logos dürfen bis 10 MB gross sein.", "err");
+    if (f.size > 2 * 1024 * 1024) return toast("Logos dürfen bis 2 MB gross sein.", "err");
     const form = new FormData();
     form.set("file", f);
     try {

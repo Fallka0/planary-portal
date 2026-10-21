@@ -10,7 +10,7 @@ Next.js 16 (App Router), React 19, plain CSS from the handoff boards (`src/app/p
 | --- | --- |
 | `/` | Übersicht: kommende und vergangene Turniere, Plan, Nutzung, offene Anfrage. New organisations get the four-step welcome. |
 | `/turniere`, `/turniere/[id]` | All tournaments with filters; one tournament with its steps, facts, share link and organisers. |
-| `/abrechnung` | Invoices (PDF, pay link), plan switch (Stripe Checkout, Event per tournament, Verein by card, TWINT or invoice), payment method (Stripe customer portal), billing address. Owners only. |
+| `/abrechnung` | Invoices (PDF, pay link), plan switch (Stripe Checkout: Event per tournament by card or TWINT, Verein as a card subscription or by invoice), payment method (Stripe customer portal), billing address. Owners only. |
 | `/team` | Members, roles, pending invitations, invite form. Members read only. |
 | `/support`, `/support/neu`, `/support/[id]` | Requests, "Etwas stimmt nicht" with topic, tournament, image and "läuft gerade", the thread with reply and attachment, "Als erledigt markieren". |
 | `/einstellungen` | Name, tournament address, logo, contact, billing address, delete (30 days). Owners only. |

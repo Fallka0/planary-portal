@@ -165,7 +165,7 @@ function gurten(state: State): OrgStore {
         {
           id: "m2",
           kind: "staff",
-          author: { id: "u_mykyta", name: "Mykyta" },
+          author: { id: "planary", name: "Mykyta von Planary" },
           body: "Hallo Matteo, danke für die schnelle Meldung. Das liegt an einer Störung bei uns, nicht an eurem Turnier. Wir sind dran und melden uns spätestens um 20:30.\n\nEure Resultate sind gespeichert, es geht nichts verloren.",
           attachments: [],
           at: at("2026-10-20T20:06:00+02:00"),
@@ -188,7 +188,7 @@ function gurten(state: State): OrgStore {
       lastBy: "staff",
       messages: [
         { id: "m3", kind: "customer", author: { id: MATTEO.id, name: MATTEO.name }, body: "Können wir die Gruppen nach dem Anmeldeschluss noch von Hand ändern?", attachments: [], at: at("2026-10-17T11:20:00+02:00") },
-        { id: "m4", kind: "staff", author: { id: "u_mykyta", name: "Mykyta" }, body: "Ja, das geht. Welche Teams sollen getauscht werden?", attachments: [], at: at("2026-10-17T15:40:00+02:00") },
+        { id: "m4", kind: "staff", author: { id: "planary", name: "Mykyta von Planary" }, body: "Ja, das geht. Welche Teams sollen getauscht werden?", attachments: [], at: at("2026-10-17T15:40:00+02:00") },
       ],
     },
     {
@@ -207,7 +207,7 @@ function gurten(state: State): OrgStore {
       lastBy: "staff",
       messages: [
         { id: "m5", kind: "customer", author: { id: MATTEO.id, name: MATTEO.name }, body: "Bitte stellt die Rechnungen ans Postfach des Vereins aus.", attachments: [], at: at("2026-09-28T10:00:00+02:00") },
-        { id: "m6", kind: "staff", author: { id: "u_mykyta", name: "Mykyta" }, body: "Erledigt. Ab der nächsten Rechnung steht das Postfach drauf.", attachments: [], at: at("2026-09-29T09:10:00+02:00") },
+        { id: "m6", kind: "staff", author: { id: "planary", name: "Mykyta von Planary" }, body: "Erledigt. Ab der nächsten Rechnung steht das Postfach drauf.", attachments: [], at: at("2026-09-29T09:10:00+02:00") },
       ],
     },
   ];
@@ -409,7 +409,7 @@ export async function fixtureCall<T>(method: "GET" | "POST", rawPath: string, bo
           tournament: t ? { id: t.id, name: t.name } : null,
           createdAt: NOW,
           updatedAt: NOW,
-          lastEvent: "Du hast um 20:11 geschrieben",
+          lastEvent: "Gesendet um 20:11",
           lastBy: "customer",
           messages: [{ id: `m_${n}`, kind: "customer", author: { id: d.me.id, name: d.me.name }, body: text, attachments: files.map((x, i) => ({ id: `att_${n}_${i}`, name: x.name, size: x.size, type: x.type, url: URL.createObjectURL(x) })), at: NOW }],
         };
@@ -423,7 +423,7 @@ export async function fixtureCall<T>(method: "GET" | "POST", rawPath: string, bo
         const files = f ? f.getAll("files").filter((x): x is File => x instanceof File) : [];
         s.requests = s.requests.map((r) =>
           r.id === seg[4]
-            ? { ...r, status: "open", updatedAt: NOW, lastBy: "customer", lastEvent: "Du hast um 20:11 geschrieben", messages: [...r.messages, { id: `m_${r.messages.length + 1}`, kind: "customer", author: { id: d.me.id, name: d.me.name }, body: text, attachments: files.map((x, i) => ({ id: `att_r${i}`, name: x.name, size: x.size, type: x.type, url: URL.createObjectURL(x) })), at: NOW }] }
+            ? { ...r, status: "open", updatedAt: NOW, lastBy: "customer", lastEvent: "Gesendet um 20:11", messages: [...r.messages, { id: `m_${r.messages.length + 1}`, kind: "customer", author: { id: d.me.id, name: d.me.name }, body: text, attachments: files.map((x, i) => ({ id: `att_r${i}`, name: x.name, size: x.size, type: x.type, url: URL.createObjectURL(x) })), at: NOW }] }
             : r,
         );
         return ok;
