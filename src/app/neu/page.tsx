@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
+import { ServicePicker } from "@/components/services";
 import { usePortalBase } from "@/components/Shell";
 import { PageHead } from "@/components/ui";
 import { setCurrentOrg } from "@/lib/current-org";
 import { type OrgError, useOrgAction } from "@/lib/org";
+import type { OrgService } from "@/lib/org-contract";
 
 /** "Verein Gurten LAN" → "verein-gurten-lan" */
 function toSlug(name: string) {
@@ -25,13 +27,16 @@ function toSlug(name: string) {
 
 const SLUG = /^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])$/;
 
-export default function CreateOrgPage() {
+function CreateOrg() {
   const { orgs } = usePortalBase();
   const router = useRouter();
   const act = useOrgAction();
   const [name, setName] = useState("");
   const [slugEdit, setSlugEdit] = useState<string | null>(null);
-  const [errs, setErrs] = useState<{ name?: string; slug?: string; form?: string }>({});
+  // planary.ch's product pages link here with ?dienst=wishlist (or tournament) to preselect one.
+  const preset = useSearchParams().get("dienst");
+  const [services, setServices] = useState<OrgService[]>(preset === "wishlist" ? ["wishlist"] : preset === "tournament" ? ["tournament"] : ["tournament", "wishlist"]);
+  const [errs, setErrs] = useState<{ name?: string; slug?: string; services?: string; form?: string }>({});
   const [busy, setBusy] = useState(false);
   const slug = slugEdit ?? toSlug(name);
 
@@ -40,11 +45,12 @@ export default function CreateOrgPage() {
     const next: typeof errs = {};
     if (name.trim().length < 2) next.name = "Wie heisst eure Organisation?";
     if (!SLUG.test(slug)) next.slug = "3 bis 40 Zeichen: Kleinbuchstaben, Ziffern und Bindestriche, nicht am Anfang oder Ende.";
+    if (!services.length) next.services = "Wähl mindestens einen Dienst. Weitere kannst du später einschalten.";
     setErrs(next);
     if (Object.keys(next).length) return;
     setBusy(true);
     try {
-      const { id } = await act<{ id: string }>("/portal/orgs", { name: name.trim(), slug });
+      const { id } = await act<{ id: string }>("/portal/orgs", { name: name.trim(), slug, services });
       setCurrentOrg(id);
       router.push("/");
     } catch (x) {
@@ -58,7 +64,7 @@ export default function CreateOrgPage() {
     <div className="card-c">
       <PageHead title="Organisation erstellen" />
       <form className="box form" onSubmit={create} noValidate aria-label="Organisation erstellen">
-        <p className="box-s">Für Vereine, Schulen und Communities. Du wirst Inhaber, startest im Plan Gratis und kannst danach dein Team einladen.</p>
+        <p className="box-s">Für Vereine, Schulen und Communities. Du wirst Inhaber, startest im Plan Gratis und kannst danach dein Team einladen. Ein Plan gilt für alle Dienste.</p>
         {errs.form ? (
           <p className="alert err" role="alert">
             {errs.form}
@@ -77,20 +83,20 @@ export default function CreateOrgPage() {
         </div>
         <div className="f">
           <label className="f-l" htmlFor="o-s">
-            Adresse eurer Turniere
+            Kurzname
           </label>
-          <div className="slug">
-            <span aria-hidden="true">tournament.planary.ch/</span>
-            <input id="o-s" className="inp" type="text" value={slug} spellCheck={false} aria-invalid={!!errs.slug} aria-describedby={errs.slug ? "o-s-e" : undefined} onChange={(e) => setSlugEdit(e.target.value.toLowerCase())} />
-          </div>
+          <input id="o-s" className="inp" type="text" value={slug} spellCheck={false} aria-invalid={!!errs.slug} aria-describedby={errs.slug ? "o-s-e" : "o-s-h"} onChange={(e) => setSlugEdit(e.target.value.toLowerCase())} />
           {errs.slug ? (
             <span id="o-s-e" className="f-err">
               {errs.slug}
             </span>
           ) : (
-            <span className="f-h">Kannst du später in den Einstellungen ändern.</span>
+            <span id="o-s-h" className="f-h">
+              Für eure Adressen bei Planary, zum Beispiel tournament.planary.ch/{slug || "kurzname"}. Kannst du später ändern.
+            </span>
           )}
         </div>
+        <ServicePicker label="Welche Dienste braucht ihr?" value={services} onChange={setServices} error={errs.services} />
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button className="btn btn-ink" type="submit" disabled={busy}>
             Organisation erstellen
@@ -103,5 +109,14 @@ export default function CreateOrgPage() {
         </div>
       </form>
     </div>
+  );
+}
+
+// useSearchParams needs a Suspense boundary for the static build.
+export default function CreateOrgPage() {
+  return (
+    <Suspense>
+      <CreateOrg />
+    </Suspense>
   );
 }

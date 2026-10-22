@@ -433,3 +433,45 @@ td.dt-c{padding:0}
 .msg-b .att{text-decoration:none}
 .msg-b a.att:hover{text-decoration:underline}
 .comp-file{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600}
+
+/* Services: choose (new organisation, settings) */
+.svc-pick{display:grid;gap:10px;margin:0;padding:0;border:0;min-width:0}
+.svc-pick legend{margin-bottom:8px}
+.svc-opt{position:relative;display:flex;align-items:flex-start;gap:14px;padding:16px;border-radius:16px;box-shadow:inset 0 0 0 1px var(--rule);background:var(--raise);cursor:pointer;transition:box-shadow .15s}
+.dark .svc-opt{background:var(--panel2)}
+.svc-opt:hover{box-shadow:inset 0 0 0 1px var(--rule-s)}
+.svc-opt.on{box-shadow:inset 0 0 0 1.5px var(--ink)}
+.svc-opt input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.svc-opt:has(input:focus-visible){outline:2px solid var(--ink);outline-offset:2px}
+.svc-opt b{display:block;font-size:15px}
+.svc-opt .s{display:block;font-size:13px;color:var(--t2);margin-top:2px}
+.svc-ic{width:40px;height:40px;flex:none;border-radius:12px;display:grid;place-items:center;background:var(--bg);box-shadow:inset 0 0 0 1px var(--rule)}
+.svc-tick{width:22px;height:22px;flex:none;border-radius:7px;box-shadow:inset 0 0 0 1.5px var(--rule-s);display:grid;place-items:center;margin-top:2px}
+.svc-opt.on .svc-tick{background:var(--ink);box-shadow:none;color:var(--bg)}
+.plan-svc+.plan-svc{margin-top:14px}
+.plan-sv{font-size:12px;font-weight:700;letter-spacing:.02em;margin-bottom:8px;opacity:.75}
+.svc-more{display:grid;gap:12px}
+.svc-row{display:flex;align-items:flex-start;gap:14px}
+.svc-row b{display:block;font-size:14px}
+.svc-row .s{display:block;font-size:13px;color:var(--t2);margin-top:2px}
+@media (max-width:640px){.svc-row{flex-wrap:wrap}.svc-row .btn{margin-left:54px}}
+
+/* Layout: the footer sits at the bottom on short pages; on wide screens the top bar, tabs, banners
+   and footer line up with the content instead of the window edge, and the content gets wider. */
+.site{display:flex;flex-direction:column;--maxw:1280px;--edge:max(0px,calc((100cqw - var(--maxw)) / 2))}
+.pmain{flex:1 0 auto;width:100%;max-width:var(--maxw)}
+.top{padding-left:max(24px,calc(var(--edge) + 40px));padding-right:max(16px,calc(var(--edge) + 34px))}
+.ptabs{padding-left:max(24px,calc(var(--edge) + 28px));padding-right:max(24px,calc(var(--edge) + 28px))}
+.pfoot,.pbanner{padding-left:max(24px,calc(var(--edge) + 40px));padding-right:max(24px,calc(var(--edge) + 40px))}
+.svc-opt .grow{flex:1;min-width:0}
+.svc-pick legend{padding:0}
+@container site (min-width:1700px){
+.site{--maxw:1440px}
+.ph h1{font-size:52px}
+}
+@container site (max-width:760px){
+.top{padding:0 8px 0 12px}
+.ptabs{padding:0 8px}
+.pfoot{padding:20px 16px}
+.pbanner{padding:12px 16px}
+}

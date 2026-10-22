@@ -22,7 +22,7 @@ function invoiceState(i: Invoice): { chip: string; label: string; pay: boolean }
 }
 
 const PLAN_SUB: Record<PlanId, (p: Plan) => string> = {
-  gratis: (p) => `bis ${p.limits.maxTeams} Teams`,
+  gratis: (p) => `bis ${p.limits.maxTeams} Teams, ${p.wishlist.maxLists ?? "unbegrenzt viele"} Wunschlisten`,
   event: () => "pro Turnier",
   verein: () => "pro Monat, jährlich",
 };
@@ -90,7 +90,7 @@ function ChangePlan({ to, billing, onClose }: { to: Plan; billing: Billing; onCl
       ) : (
         <>
           <p className="box-s">
-            {planPrice(to)}, jährlich verrechnet ({chf(to.price * 12)}). Unbegrenzt viele Turniere, bis {to.limits.maxOrganisers} Organisatoren. Ein Wechsel von Event wird anteilig angerechnet.
+            {planPrice(to)}, jährlich verrechnet ({chf(to.price * 12)}). Unbegrenzt viele Turniere und Wunschlisten, bis {to.limits.maxOrganisers} Organisatoren. Ein Wechsel von Event wird anteilig angerechnet.
           </p>
           <fieldset className="f" style={{ border: 0, padding: 0, margin: 0 }}>
             <legend className="f-l" style={{ marginBottom: 8 }}>
@@ -237,11 +237,10 @@ function Billing() {
               );
             })}
           </div>
-          {data.plans.some((p) => p.placeholder) ? (
-            <p className="box-s" style={{ marginTop: 12 }}>
-              Preise sind Platzhalter, bis Planary sie festlegt.
-            </p>
-          ) : null}
+          <p className="box-s" style={{ marginTop: 12 }}>
+            Ein Plan gilt für alle Dienste von {org.name}, für Tournament und Wishlist.
+            {data.plans.some((p) => p.placeholder) ? " Preise sind Platzhalter, bis Planary sie festlegt." : ""}
+          </p>
         </section>
       </div>
       <div className="stack">

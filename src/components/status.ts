@@ -1,4 +1,4 @@
-import type { Plan, PlanLimits, RequestStatus, RequestTopic, TournamentState, TournamentSummary } from "@/lib/org-contract";
+import type { Plan, PlanLimits, RequestStatus, RequestTopic, TournamentState, TournamentSummary, WishlistLimits } from "@/lib/org-contract";
 import { chfShort } from "@/lib/fmt";
 
 /** Status chips: [chip class, dot class, word]. */
@@ -40,6 +40,7 @@ export function planPrice(p: Plan) {
 }
 
 /** What a plan includes, in the order the boards list it. */
+/** What a plan includes in Tournament. */
 export function included(l: PlanLimits) {
   if (!l.branding) {
     return [`Bis ${l.maxTeams} Teams pro Turnier`, l.maxRunning === 1 ? "Ein laufendes Turnier" : `${l.maxRunning} laufende Turniere`, "Anmeldung, Spielplan, Bracket", "Beamer-Ansicht mit Planary-Logo"];
@@ -51,4 +52,9 @@ export function included(l: PlanLimits) {
     "Eigenes Logo auf dem Beamer",
     l.invoice ? "Rechnung per E-Mail" : "Export als CSV und PDF",
   ];
+}
+
+/** What a plan includes in Wishlist. */
+export function includedWishlist(w: WishlistLimits) {
+  return [w.maxLists === null ? "Unbegrenzt viele Wunschlisten" : `${w.maxLists} Wunschlisten für die Organisation`, "Gemeinsam im Team pflegen, per Link teilen"];
 }

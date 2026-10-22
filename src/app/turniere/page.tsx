@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { ServiceOff } from "@/components/services";
 import { usePageBusy, usePortal } from "@/components/Shell";
 import { tourLabel, tourTeams, TOURNAMENT_STATE } from "@/components/status";
 import { Chip, Empty, ErrorCard, Ic, Loading, PageHead, Sk, Table, Td } from "@/components/ui";
@@ -21,7 +22,7 @@ const FILTERS: [Filter, string][] = [
   ["done", "Abgeschlossen"],
 ];
 
-export default function TournamentsPage() {
+function TournamentList() {
   const { org } = usePortal();
   const t = now();
   const [filter, setFilter] = useState<Filter>("all");
@@ -113,6 +114,17 @@ export default function TournamentsPage() {
           </section>
         </>
       )}
+    </>
+  );
+}
+
+export default function TournamentsPage() {
+  const { org } = usePortal();
+  if (org.services.includes("tournament")) return <TournamentList />;
+  return (
+    <>
+      <PageHead title={PORTAL.tournaments.h} />
+      <ServiceOff id="tournament" org={org} />
     </>
   );
 }

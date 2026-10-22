@@ -10,7 +10,7 @@ const disp = Unbounded({ variable: "--font-disp", subsets: ["latin", "latin-ext"
 
 export const metadata: Metadata = {
   title: { default: "Planary Portal", template: "%s · Planary Portal" },
-  description: "Turniere, Abrechnung, Team und Support für eure Organisation.",
+  description: "Turniere, Wunschlisten, Abrechnung, Team und Support für eure Organisation.",
   robots: { index: false, follow: false },
 };
 
