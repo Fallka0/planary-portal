@@ -47,7 +47,7 @@ function Delete({ org, onClose }: { org: PortalOrg; onClose: () => void }) {
         </>
       }
     >
-      <p className="box-s">{PORTAL.settings.dangerP} Laufende und geplante Turniere werden abgesagt.</p>
+      <p className="box-s">{PORTAL.settings.dangerP}</p>
       <div className="f">
         <label className="f-l" htmlFor="del-n">
           Tipp zur Bestätigung „{org.name}“ ein
@@ -73,7 +73,7 @@ function Services({ org }: { org: PortalOrg }) {
       noValidate
       onSubmit={async (e) => {
         e.preventDefault();
-        if (!services.length) return setError("Mindestens ein Dienst bleibt eingeschaltet.");
+        if (!services.length) return setError("Mindestens ein Dienst bleibt an.");
         setError("");
         setBusy(true);
         try {
@@ -89,12 +89,11 @@ function Services({ org }: { org: PortalOrg }) {
       <h2 id="sv-h" className="box-t">
         Dienste
       </h2>
-      <p className="box-s">Euer Plan {org.plan.name} gilt für alle Dienste. Ausschalten blendet einen Dienst aus, eure Daten bleiben erhalten.</p>
-      <ServicePicker label="Diese Dienste nutzt ihr" value={services} onChange={setServices} error={error} />
+      <ServicePicker label="Dienste" hideLabel value={services} onChange={setServices} error={error} />
       {off.length ? (
         <p className="alert info" role="status">
           <Ic name="info" small />
-          {off.map((x) => SERVICES[x].name).join(" und ")} {off.length === 1 ? "wird" : "werden"} für alle im Team ausgeblendet.
+          {off.map((x) => SERVICES[x].name).join(" und ")} {off.length === 1 ? "wird" : "werden"} ausgeblendet, die Daten bleiben.
         </p>
       ) : null}
       <div>
@@ -198,7 +197,7 @@ function Settings({ org }: { org: PortalOrg }) {
             />
             {errLine("slug") ?? (
               <span id="slug-h" className="f-h">
-                Für eure Adressen bei Planary, zum Beispiel tournament.planary.ch/{slug || "kurzname"}.
+                Für eure Adressen, z. B. tournament.planary.ch/{slug || "kurzname"}
               </span>
             )}
           </div>

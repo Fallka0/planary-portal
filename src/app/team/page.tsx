@@ -42,7 +42,7 @@ function Invite({ full, seats }: { full: boolean; seats: number }) {
         {PORTAL.team.inviteH}
       </h2>
       <p className="box-s" style={{ marginTop: 6 }}>
-        {full ? `Alle ${seats} ${seats === 1 ? "Platz" : "Plätze"} im Plan ${org.plan.name} sind belegt. Für mehr Organisatoren wechselst du in der Abrechnung zu Verein.` : PORTAL.team.inviteP}
+        {full ? `Alle ${seats} ${seats === 1 ? "Platz" : "Plätze"} belegt. Mehr gibt es im Plan Verein.` : PORTAL.team.inviteP}
       </p>
       <form className="form" style={{ marginTop: 14 }} onSubmit={send} noValidate>
         <div className="f">
@@ -109,7 +109,7 @@ function Remove({ m, onClose }: { m: PortalMember; onClose: () => void }) {
       }
     >
       <p className="box-s">
-        {m.name} kann danach keine Turniere von {org.name} mehr leiten. Turniere und Resultate bleiben. Du kannst die Person jederzeit wieder einladen.
+        {m.name} verliert den Zugang zu {org.name}. Turniere und Listen bleiben.
       </p>
     </Dialog>
   );

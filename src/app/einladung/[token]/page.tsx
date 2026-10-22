@@ -36,7 +36,7 @@ export default function InvitePage({ params }: PageProps<"/einladung/[token]">) 
         <p>
           Du bist als <b>{me.name}</b> ({me.email}) angemeldet. Nimmst du die Einladung an, leitest du ab jetzt Turniere im Namen der Organisation.
         </p>
-        <p className="box-s">Falsches Konto? Melde dich bei auth.planary.ch ab und öffne den Link aus der E-Mail nochmals.</p>
+        <p className="box-s">Falsches Konto? Melde dich ab und öffne den Link nochmals.</p>
         {error ? (
           <p className="alert err" role="alert">
             <Ic name="alert" />

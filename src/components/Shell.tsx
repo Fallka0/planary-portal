@@ -55,7 +55,7 @@ export function usePortal() {
 
 /** Areas only owners see (open question 8): Abrechnung and Einstellungen. */
 export function OwnerOnly({ children }: { children: ReactNode }) {
-  const { isOwner, org } = usePortal();
+  const { isOwner } = usePortal();
   if (isOwner) return <>{children}</>;
   return (
     <Empty
@@ -67,7 +67,7 @@ export function OwnerOnly({ children }: { children: ReactNode }) {
         </Link>
       }
     >
-      Das verwalten die Inhaber von {org.name}. Frag sie, wenn du hier etwas brauchst.
+      Das verwalten die Inhaber.
     </Empty>
   );
 }
@@ -372,7 +372,7 @@ export function Shell({ children }: { children: ReactNode }) {
           </Link>
         }
       >
-        Leg eine Organisation an, um Turniere und Wunschlisten im Namen eures Vereins zu verwalten. Oder öffne die Einladung, die du per E-Mail bekommen hast.
+        Leg eine an oder öffne deine Einladung.
       </Empty>
     );
   else if (orgQ.error && !org) body = <ErrorCard title="Die Organisation hat nicht geladen" error={orgQ.error} onRetry={orgQ.reload} />;

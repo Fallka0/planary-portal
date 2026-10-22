@@ -161,7 +161,7 @@ export default function TournamentPage({ params }: PageProps<"/turniere/[id]">) 
             </h2>
           </div>
           <p className="box-s" style={{ marginBottom: 10 }}>
-            Mit diesem Link sehen alle Bracket, Spielplan und Resultate. Ein Konto braucht es nur zum Anmelden.
+            Öffentlich, ohne Konto.
           </p>
           <Share url={url} />
         </section>
