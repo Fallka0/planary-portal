@@ -27,7 +27,7 @@ const PLAN_SUB: Record<PlanId, (p: Plan) => string> = {
   verein: () => "pro Monat, jährlich",
 };
 
-function ChangePlan({ to, billing, onClose }: { to: Plan; billing: Billing; onClose: () => void }) {
+function ChangePlan({ to, onClose }: { to: Plan; onClose: () => void }) {
   const { org, toast } = usePortal();
   const act = useOrgAction();
   const [payBy, setPayBy] = useState<"card" | "invoice">("card");
@@ -48,7 +48,6 @@ function ChangePlan({ to, billing, onClose }: { to: Plan; billing: Billing; onCl
       setBusy(false);
     }
   };
-  const current = billing.plans.find((p) => p.id === billing.current);
   return (
     <Dialog
       title={to.id === "gratis" ? "Zu Gratis wechseln" : `Plan ${to.name}`}
@@ -67,11 +66,11 @@ function ChangePlan({ to, billing, onClose }: { to: Plan; billing: Billing; onCl
     >
       {to.id === "gratis" ? (
         <p className="box-s">
-          Dein Abo {current ? `im Plan ${current.name}` : ""} läuft bis zum Ende der bezahlten Zeit weiter. Danach gelten die Grenzen von Gratis: bis {to.limits.maxTeams} Teams und ein laufendes Turnier. Kündigen kannst du bei Stripe.
+          Läuft bis zum Ende der bezahlten Zeit, danach gilt Gratis. Kündigen bei Stripe.
         </p>
       ) : to.id === "event" ? (
         <>
-          <p className="box-s">{chfShort(to.price)} für ein Turnier: bis {to.limits.maxTeams} Teams, Check-in, Warteliste, eigenes Logo auf dem Beamer und Export. Bezahlen mit Karte oder TWINT.</p>
+          <p className="box-s">{chfShort(to.price)} pro Turnier, bis {to.limits.maxTeams} Teams. Karte oder TWINT.</p>
           <div className="f">
             <label className="f-l" htmlFor="cp-t">
               Für welches Turnier?
@@ -84,13 +83,13 @@ function ChangePlan({ to, billing, onClose }: { to: Plan; billing: Billing; onCl
                 </option>
               ))}
             </select>
-            {tours && !candidates.length ? <span className="f-h">Kein offenes Turnier im Plan Gratis. Erstell zuerst eines in Tournament.</span> : null}
+            {tours && !candidates.length ? <span className="f-h">Erstell zuerst ein Turnier.</span> : null}
           </div>
         </>
       ) : (
         <>
           <p className="box-s">
-            {planPrice(to)}, jährlich verrechnet ({chf(to.price * 12)}). Unbegrenzt viele Turniere und Wunschlisten, bis {to.limits.maxOrganisers} Organisatoren. Ein Wechsel von Event wird anteilig angerechnet.
+            {planPrice(to)}, jährlich ({chf(to.price * 12)}). Unbegrenzt Turniere und Wunschlisten.
           </p>
           <fieldset className="f" style={{ border: 0, padding: 0, margin: 0 }}>
             <legend className="f-l" style={{ marginBottom: 8 }}>
@@ -104,7 +103,7 @@ function ChangePlan({ to, billing, onClose }: { to: Plan; billing: Billing; onCl
                 Rechnung per E-Mail
               </button>
             </div>
-            <span className="f-h">{payBy === "invoice" ? "Du bekommst die Rechnung als PDF, zahlbar innert 30 Tagen." : "Ein Abo mit Karte, über Stripe."}</span>
+            <span className="f-h">{payBy === "invoice" ? "PDF, zahlbar in 30 Tagen." : "Abo per Karte."}</span>
           </fieldset>
         </>
       )}
@@ -208,7 +207,7 @@ function Billing() {
               })}
             </Table>
           ) : (
-            <p className="box-s">Noch keine Rechnungen. Im Plan Gratis gibt es keine.</p>
+            <p className="box-s">Noch keine Rechnungen.</p>
           )}
         </section>
         <section className="box" aria-labelledby="pw-h">
@@ -238,8 +237,7 @@ function Billing() {
             })}
           </div>
           <p className="box-s" style={{ marginTop: 12 }}>
-            Ein Plan gilt für alle Dienste von {org.name}, für Tournament und Wishlist.
-            {data.plans.some((p) => p.placeholder) ? " Preise sind Platzhalter, bis Planary sie festlegt." : ""}
+            Gilt für alle Dienste.{data.plans.some((p) => p.placeholder) ? " Preise sind Platzhalter." : ""}
           </p>
         </section>
       </div>
@@ -282,7 +280,7 @@ function Billing() {
               </button>
             </div>
           ) : (
-            <p className="box-s">Noch kein Zahlungsmittel. Du gibst es beim ersten Planwechsel bei Stripe ein.</p>
+            <p className="box-s">Noch keins hinterlegt.</p>
           )}
         </section>
         <section className="box" aria-labelledby="ad-h">
@@ -303,7 +301,7 @@ function Billing() {
           </address>
         </section>
       </div>
-      {to ? <ChangePlan to={to} billing={data} onClose={() => setTo(null)} /> : null}
+      {to ? <ChangePlan to={to} onClose={() => setTo(null)} /> : null}
     </div>
   );
 }

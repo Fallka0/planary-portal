@@ -76,34 +76,34 @@ export const PORTAL = {
   },
   "newOrg": {
     "h": "Willkommen, Lena.",
-    "p": "Spielclub Thun ist eingerichtet. Ein paar Schritte, dann seid ihr startklar.",
+    "p": "Spielclub Thun ist eingerichtet.",
     "steps": [
       {
         "t": "Organisation angelegt",
-        "p": "Name und Kontakt sind gespeichert.",
+        "p": "Name und Kontakt gespeichert.",
         "done": true
       },
       {
         "t": "Logo hochladen",
-        "p": "Erscheint im Turnier und, ab Plan Event, auf dem Beamer.",
+        "p": "Für Turniere und Beamer.",
         "cta": "Logo hochladen",
         "go": "settings"
       },
       {
         "t": "Team einladen",
-        "p": "Wer mit dir Turniere leitet und Wunschlisten pflegt. Im Plan Gratis bist du allein.",
+        "p": "Wer mit dir arbeitet.",
         "cta": "Einladen",
         "go": "team"
       },
       {
         "t": "Erstes Turnier erstellen",
-        "p": "Spiel, Format, Datum. Den Rest macht Tournament.",
+        "p": "Spiel, Format, Datum.",
         "cta": "Turnier erstellen",
         "go": "create"
       }
     ],
     "emptyH": "Noch keine Turniere",
-    "emptyP": "Sobald du ein Turnier erstellst, siehst du es hier mit Status, Anmeldungen und Resultaten."
+    "emptyP": "Hier erscheinen eure Turniere."
   },
   "tournaments": {
     "h": "Turniere"
@@ -122,15 +122,15 @@ export const PORTAL = {
     "roles": [
       {
         "n": "Inhaber",
-        "p": "Verwaltet Abrechnung, Team und Einstellungen. Erstellt und leitet Turniere."
+        "p": "Alles, auch Abrechnung und Team."
       },
       {
         "n": "Mitglied",
-        "p": "Erstellt und leitet Turniere. Sieht die Abrechnung nicht."
+        "p": "Turniere und Wunschlisten, ohne Abrechnung."
       }
     ],
     "inviteH": "Jemanden einladen",
-    "inviteP": "Die Person bekommt eine E-Mail und meldet sich mit ihrem Planary-Konto an.",
+    "inviteP": "Die Einladung kommt per E-Mail.",
     "invite": "Einladung senden",
     "seats": "3 von 5 Plätzen im Plan Verein"
   },
@@ -156,7 +156,7 @@ export const PORTAL = {
     "whatL": "Was ist passiert?",
     "whatPh": "Zum Beispiel: Seit 19:55 zeigt die Beamer-Ansicht alte Resultate.",
     "attL": "Bildschirmfoto oder Foto",
-    "attP": "Hierher ziehen oder auswählen. PNG oder JPG, bis 10 MB.",
+    "attP": "PNG oder JPG, bis 10 MB.",
     "liveL": "Das Turnier läuft gerade",
     "liveP": "Dann sehen wir uns die Anfrage zuerst an.",
     "send": "Anfrage senden",
@@ -173,14 +173,14 @@ export const PORTAL = {
     "nameL": "Name",
     "slugL": "Kurzname",
     "logoL": "Logo",
-    "logoP": "Quadratisch, mindestens 512 × 512 px. Erscheint ab Plan Event auch auf dem Beamer.",
+    "logoP": "Quadratisch, ab 512 × 512 px.",
     "contactH": "Kontakt",
-    "mailL": "E-Mail für Rechnungen und Hinweise",
+    "mailL": "E-Mail für Rechnungen",
     "phoneL": "Telefon (freiwillig)",
     "addrL": "Rechnungsadresse",
     "save": "Änderungen speichern",
     "dangerH": "Organisation löschen",
-    "dangerP": "Löscht die Organisation, ihre Turniere und Rechnungsdaten nach 30 Tagen. Ihre Wunschlisten sind danach für niemanden mehr erreichbar. Nur Inhaber können das.",
+    "dangerP": "Nach 30 Tagen ist alles gelöscht, auch Turniere und Wunschlisten.",
     "danger": "Organisation löschen"
   }
 } as const;

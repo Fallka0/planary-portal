@@ -2,16 +2,16 @@
 
 import { useState } from "react";
 import { type OrgError, useOrgAction } from "@/lib/org";
-import type { OrgService, PortalOrg } from "@/lib/org-contract";
+import type { OrgService } from "@/lib/org-contract";
 import { SERVICE_IDS, SERVICES } from "@/lib/services";
 import { usePortal } from "./Shell";
 import { Empty, Ic } from "./ui";
 
 /** Choose services: one card per service with a real checkbox, at least one stays on. */
-export function ServicePicker({ value, onChange, label, error }: { value: OrgService[]; onChange: (next: OrgService[]) => void; label: string; error?: string }) {
+export function ServicePicker({ value, onChange, label, hideLabel, error }: { value: OrgService[]; onChange: (next: OrgService[]) => void; label: string; hideLabel?: boolean; error?: string }) {
   return (
     <fieldset className="svc-pick" aria-describedby={error ? "svc-e" : undefined}>
-      <legend className="f-l">{label}</legend>
+      <legend className={hideLabel ? "sr" : "f-l"}>{label}</legend>
       {SERVICE_IDS.map((id) => {
         const s = SERVICES[id];
         const on = value.includes(id);
@@ -64,7 +64,7 @@ export function useEnableService() {
 }
 
 /** A service page while the organisation doesn't use the service. */
-export function ServiceOff({ id, org }: { id: OrgService; org: PortalOrg }) {
+export function ServiceOff({ id }: { id: OrgService }) {
   const { isOwner } = usePortal();
   const { enable, busy } = useEnableService();
   const s = SERVICES[id];
@@ -80,7 +80,7 @@ export function ServiceOff({ id, org }: { id: OrgService; org: PortalOrg }) {
         ) : undefined
       }
     >
-      {s.what} {isOwner ? `Schalte ${s.name} für ${org.name} ein, es ist in eurem Plan enthalten.` : `Die Inhaber von ${org.name} können ${s.name} einschalten.`}
+      {s.what} {isOwner ? "Im Plan enthalten." : "Einschalten können die Inhaber."}
     </Empty>
   );
 }

@@ -6,14 +6,14 @@ import { num } from "./fmt";
 export const SERVICES: Record<OrgService, { name: string; what: string; url: string; href: string; icon: "trophy" | "gift" }> = {
   tournament: {
     name: "Tournament",
-    what: "Turniere mit Anmeldung, Spielplan, Bracket und Beamer-Ansicht.",
+    what: "Turniere, Bracket und Beamer.",
     url: TOURNAMENT_URL,
     href: "/turniere",
     icon: "trophy",
   },
   wishlist: {
     name: "Wishlist",
-    what: "Wunschlisten, die euer Team gemeinsam pflegt und per Link teilt, zum Beispiel für Material oder ein Vereinsfest.",
+    what: "Gemeinsame Wunschlisten fürs Team.",
     url: WISHLIST_URL,
     href: "/wunschlisten",
     icon: "gift",

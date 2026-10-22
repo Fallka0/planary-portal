@@ -48,7 +48,7 @@ function Welcome({ org, name, wishlistStarted }: { org: PortalOrg; name: string;
   if (org.services.includes("wishlist")) {
     steps.push({
       t: "Erste Wunschliste anlegen",
-      p: "Zum Beispiel für Material oder ein Vereinsfest. Das Team pflegt sie gemeinsam.",
+      p: "Für Material oder ein Fest.",
       done: wishlistStarted,
       cta: { label: "Wunschliste erstellen", href: `${WISHLIST_URL}/app?org=${org.id}`, external: true },
     });
@@ -57,7 +57,7 @@ function Welcome({ org, name, wishlistStarted }: { org: PortalOrg; name: string;
     <section className="welcome" aria-labelledby="wl-h">
       <div>
         <h2 id="wl-h">Willkommen, {name.split(" ")[0]}.</h2>
-        <p className="l">{org.name} ist eingerichtet. Ein paar Schritte, dann seid ihr startklar.</p>
+        <p className="l">{org.name} ist eingerichtet.</p>
       </div>
       <ol className="ob">
         {steps.map((step, i) => (
@@ -243,7 +243,7 @@ function Tournaments({ org, data, error, reload, nowMs }: { org: PortalOrg; data
               </a>
             }
           >
-            {all.length ? "Gerade ist kein Turnier geplant. Das nächste erstellst du in Tournament." : PORTAL.newOrg.emptyP}
+            {all.length ? "Gerade ist nichts geplant." : PORTAL.newOrg.emptyP}
           </Empty>
         )}
       </section>
@@ -282,7 +282,7 @@ function Wishlists({ org, data, error, reload }: { org: PortalOrg; data: Wishlis
       {error && !data ? (
         <ErrorCard title="Die Wunschlisten haben nicht geladen" error={error} onRetry={reload} />
       ) : data && !data.connected ? (
-        <p className="box-s">Wishlist antwortet gerade nicht. Eure Wunschlisten sind gespeichert.</p>
+        <p className="box-s">Wishlist antwortet gerade nicht.</p>
       ) : data?.lists.length ? (
         <div>
           {data.lists.slice(0, 4).map((l) => (
@@ -311,7 +311,7 @@ function Wishlists({ org, data, error, reload }: { org: PortalOrg; data: Wishlis
             )
           }
         >
-          Material, Spenden oder ein Vereinsfest: Das Team pflegt die Liste gemeinsam, Freunde reservieren per Link.
+          Für Material, Spenden oder ein Fest.
         </Empty>
       )}
     </section>
@@ -339,7 +339,7 @@ function MoreServices({ org }: { org: PortalOrg }) {
             </span>
             <div className="grow">
               <b>{SERVICES[id].name}</b>
-              <span className="s">{SERVICES[id].what} Im Plan {org.plan.name} enthalten.</span>
+              <span className="s">{SERVICES[id].what}</span>
             </div>
             {isOwner ? (
               <button className="btn btn-line btn-s" type="button" disabled={busy} onClick={() => enable(id)}>
@@ -348,7 +348,7 @@ function MoreServices({ org }: { org: PortalOrg }) {
             ) : null}
           </div>
         ))}
-        {!isOwner ? <p className="box-s">Einschalten können die Inhaber von {org.name}.</p> : null}
+        {!isOwner ? <p className="box-s">Einschalten können die Inhaber.</p> : null}
       </div>
     </section>
   );

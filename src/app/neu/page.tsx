@@ -45,7 +45,7 @@ function CreateOrg() {
     const next: typeof errs = {};
     if (name.trim().length < 2) next.name = "Wie heisst eure Organisation?";
     if (!SLUG.test(slug)) next.slug = "3 bis 40 Zeichen: Kleinbuchstaben, Ziffern und Bindestriche, nicht am Anfang oder Ende.";
-    if (!services.length) next.services = "Wähl mindestens einen Dienst. Weitere kannst du später einschalten.";
+    if (!services.length) next.services = "Wähl mindestens einen Dienst.";
     setErrs(next);
     if (Object.keys(next).length) return;
     setBusy(true);
@@ -64,7 +64,7 @@ function CreateOrg() {
     <div className="card-c">
       <PageHead title="Organisation erstellen" />
       <form className="box form" onSubmit={create} noValidate aria-label="Organisation erstellen">
-        <p className="box-s">Für Vereine, Schulen und Communities. Du wirst Inhaber, startest im Plan Gratis und kannst danach dein Team einladen. Ein Plan gilt für alle Dienste.</p>
+        <p className="box-s">Du startest gratis. Ein Plan gilt für alle Dienste.</p>
         {errs.form ? (
           <p className="alert err" role="alert">
             {errs.form}
@@ -92,11 +92,11 @@ function CreateOrg() {
             </span>
           ) : (
             <span id="o-s-h" className="f-h">
-              Für eure Adressen bei Planary, zum Beispiel tournament.planary.ch/{slug || "kurzname"}. Kannst du später ändern.
+              Für eure Adressen, z. B. tournament.planary.ch/{slug || "kurzname"}
             </span>
           )}
         </div>
-        <ServicePicker label="Welche Dienste braucht ihr?" value={services} onChange={setServices} error={errs.services} />
+        <ServicePicker label="Dienste" value={services} onChange={setServices} error={errs.services} />
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button className="btn btn-ink" type="submit" disabled={busy}>
             Organisation erstellen

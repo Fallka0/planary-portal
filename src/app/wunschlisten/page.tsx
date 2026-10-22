@@ -36,11 +36,11 @@ function WishlistList() {
         </Loading>
       ) : !data.connected ? (
         <Empty icon="alert" title="Wishlist antwortet gerade nicht">
-          Eure Wunschlisten sind gespeichert. Versuch es in ein paar Minuten nochmals oder öffne sie direkt in Wishlist.
+          Versuch es gleich nochmals.
         </Empty>
       ) : !data.lists.length ? (
         <Empty icon="gift" title="Noch keine Wunschlisten" action={add ? <a className="btn btn-ink btn-s" href={data.newUrl}>Wunschliste erstellen</a> : undefined}>
-          Wunschlisten von {org.name} pflegt das ganze Team gemeinsam in Wishlist. Teilt ihr eine per Link, reservieren Freunde dort, was sie mitbringen. Was reserviert ist, sieht niemand im Team.
+          Das Team pflegt sie gemeinsam. Was reserviert ist, bleibt geheim.
         </Empty>
       ) : (
         <section className="box">
@@ -86,7 +86,7 @@ function WishlistList() {
           </Table>
           {full ? (
             <p className="box-s" style={{ marginTop: 12 }}>
-              Euer Plan hat Platz für {num(data.maxLists ?? 0)} Wunschlisten. Mit dem Plan Verein sind es unbegrenzt viele.
+              Mehr Wunschlisten gibt es im Plan Verein.
             </p>
           ) : null}
         </section>
@@ -101,7 +101,7 @@ export default function WishlistsPage() {
   return (
     <>
       <PageHead title="Wunschlisten" />
-      <ServiceOff id="wishlist" org={org} />
+      <ServiceOff id="wishlist" />
     </>
   );
 }

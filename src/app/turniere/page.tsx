@@ -124,7 +124,7 @@ export default function TournamentsPage() {
   return (
     <>
       <PageHead title={PORTAL.tournaments.h} />
-      <ServiceOff id="tournament" org={org} />
+      <ServiceOff id="tournament" />
     </>
   );
 }

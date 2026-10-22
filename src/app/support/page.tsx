@@ -31,7 +31,7 @@ export default function SupportPage() {
         </Loading>
       ) : !data.requests.length ? (
         <Empty icon="inbox" title="Keine Anfragen" action={action}>
-          Wenn etwas nicht stimmt, schreib uns hier. Wir antworten an Werktagen innert eines Tages, während eines laufenden Turniers schneller.
+          Schreib uns, wenn etwas nicht stimmt.
         </Empty>
       ) : (
         <section className="box">
