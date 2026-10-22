@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 import { usePortal } from "@/components/Shell";
 import { Ic, PageHead } from "@/components/ui";
 import { PORTAL } from "@/design/portal-copy";
@@ -25,9 +25,11 @@ function option(t: TournamentSummary, nowMs: number) {
   return `${t.name}${t.startsAt ? ` · ${shortDay(t.startsAt).replace(/^\S+ /, "")}` : ""}`;
 }
 
-export default function NewRequestPage() {
+function NewRequest() {
   const { org } = usePortal();
   const router = useRouter();
+  // From Tournament's "Etwas stimmt nicht": that tournament, preselected.
+  const asked = useSearchParams().get("turnier");
   const act = useOrgAction();
   const nowMs = now();
   const { data } = useOrg<PortalApi["GET /portal/orgs/:id/tournaments"]["R"]>(`/portal/orgs/${org.id}/tournaments`);
@@ -43,7 +45,7 @@ export default function NewRequestPage() {
   const [busy, setBusy] = useState(false);
 
   // Until someone picks, the request is about the tournament that's running, and urgent while it runs.
-  const tid = picked ?? live?.id ?? tours.find((t) => t.state !== "done")?.id ?? "";
+  const tid = picked ?? (asked && tours.some((t) => t.id === asked) ? asked : null) ?? live?.id ?? tours.find((t) => t.state !== "done")?.id ?? "";
   const tour = tours.find((t) => t.id === tid);
   const urgent = urgentPick ?? (topic === "tournament" && tour?.state === "live");
 
@@ -200,5 +202,13 @@ export default function NewRequestPage() {
         </section>
       </div>
     </>
+  );
+}
+
+export default function NewRequestPage() {
+  return (
+    <Suspense fallback={null}>
+      <NewRequest />
+    </Suspense>
   );
 }
