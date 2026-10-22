@@ -6,6 +6,8 @@ import type {
   BillingContact,
   Invoice,
   MemberRole,
+  OrgService,
+  OrgWishlist,
   PaymentMethod,
   Person,
   Plan,
@@ -37,9 +39,9 @@ const LIMITS = {
   verein: { maxTeams: 128, maxRunning: null, maxOrganisers: 5, branding: true, checkIn: true, waitingList: true, export: true, matchDaySupport: true, invoice: true },
 };
 const PLANS: Record<PlanId, Plan> = {
-  gratis: { id: "gratis", name: "Gratis", price: 0, period: "forever", placeholder: true, limits: LIMITS.gratis },
-  event: { id: "event", name: "Event", price: 4900, period: "tournament", placeholder: true, limits: LIMITS.event },
-  verein: { id: "verein", name: "Verein", price: 1900, period: "month_yearly", placeholder: true, limits: LIMITS.verein },
+  gratis: { id: "gratis", name: "Gratis", price: 0, period: "forever", placeholder: true, limits: LIMITS.gratis, wishlist: { maxLists: 2 } },
+  event: { id: "event", name: "Event", price: 4900, period: "tournament", placeholder: true, limits: LIMITS.event, wishlist: { maxLists: 2 } },
+  verein: { id: "verein", name: "Verein", price: 1900, period: "month_yearly", placeholder: true, limits: LIMITS.verein, wishlist: { maxLists: null } },
 };
 
 const MATTEO: Person = { id: "u_matteo", name: "Matteo Keller", email: "matteo.keller@gurtenlan.ch" };
@@ -93,6 +95,7 @@ const OVERDUE: PortalBanner = {
 interface OrgStore {
   org: PortalOrg;
   tournaments: TournamentSummary[];
+  wishlists: OrgWishlist[];
   invoices: Invoice[];
   paymentMethod: PaymentMethod | null;
   members: PortalMember[];
@@ -221,6 +224,7 @@ function gurten(state: State): OrgStore {
       logoUrl: null,
       role,
       plan: PLANS.verein,
+      services: ["tournament", "wishlist"],
       renewsAt: at("2027-02-03T00:00:00+01:00"),
       createdAt: at("2026-02-01T12:00:00+01:00"),
       contact,
@@ -230,6 +234,10 @@ function gurten(state: State): OrgStore {
       counts: { openRequests: 1, overdueInvoices: overdue ? 1 : 0 },
     },
     tournaments: TOURS,
+    wishlists: [
+      { id: 41, title: "Material Saison 2027", items: 6, value: 84500, shared: false, createdBy: "Matteo Keller", updatedAt: at("2026-10-19T18:40:00+02:00"), url: "https://wishlist.planary.ch/app/lists/41" },
+      { id: 42, title: "Tombola Gurten LAN", items: 14, value: 61200, shared: true, createdBy: "Noa Brunner", updatedAt: at("2026-10-20T19:02:00+02:00"), url: "https://wishlist.planary.ch/app/lists/42" },
+    ],
     invoices,
     paymentMethod: { brand: "visa", last4: "4242", expMonth: 8, expYear: 2028, kind: "card" },
     members,
@@ -248,6 +256,7 @@ function thun(): OrgStore {
       logoUrl: null,
       role: "owner",
       plan: PLANS.gratis,
+      services: ["tournament", "wishlist"],
       renewsAt: null,
       createdAt: NOW - 20 * 60_000,
       contact: { email: LENA.email, phone: "", address: ["Spielclub Thun", "3600 Thun"] },
@@ -257,6 +266,7 @@ function thun(): OrgStore {
       counts: { openRequests: 0, overdueInvoices: 0 },
     },
     tournaments: [],
+    wishlists: [],
     invoices: [],
     paymentMethod: null,
     members: [{ ...LENA, role: "owner", lastActive: NOW - 60_000, me: true }],
@@ -324,13 +334,13 @@ export async function fixtureCall<T>(method: "GET" | "POST", rawPath: string, bo
   const ok = { ok: true } as T;
   try {
     if (method === "GET" && path === "/portal/me") {
-      const orgs: PortalOrgSummary[] = d.stores.map((s) => ({ id: s.org.id, name: s.org.name, initials: s.org.initials, role: s.org.role, plan: s.org.plan.id }));
+      const orgs: PortalOrgSummary[] = d.stores.map((s) => ({ id: s.org.id, name: s.org.name, initials: s.org.initials, role: s.org.role, plan: s.org.plan.id, services: s.org.services }));
       return { me: d.me, orgs } as T;
     }
     if (method === "POST" && path === "/portal/orgs") {
-      const b = body as { name: string; slug: string };
+      const b = body as { name: string; slug: string; services: OrgService[] };
       const s = thun();
-      s.org = { ...s.org, id: `org_${b.slug}`, name: b.name, slug: b.slug, initials: b.name.slice(0, 2).toUpperCase(), createdAt: NOW };
+      s.org = { ...s.org, id: `org_${b.slug}`, name: b.name, slug: b.slug, services: b.services, initials: b.name.slice(0, 2).toUpperCase(), createdAt: NOW };
       d.stores.push(s);
       return { id: s.org.id } as T;
     }
@@ -343,6 +353,10 @@ export async function fixtureCall<T>(method: "GET" | "POST", rawPath: string, bo
     if (method === "GET") {
       if (rest === "") return s.org as T;
       if (rest === "tournaments") return { tournaments: s.tournaments } as T;
+      if (rest === "wishlists") {
+        if (!s.org.services.includes("wishlist")) throw new FixtureError(404, "Das gibt es nicht (mehr).", "not_found");
+        return { connected: true, lists: s.wishlists, maxLists: s.org.plan.wishlist.maxLists, newUrl: `https://wishlist.planary.ch/app?org=${s.org.id}` } as T;
+      }
       if (seg[3] === "tournaments" && seg[4]) {
         const t = s.tournaments.find((x) => x.id === seg[4] || x.slug === seg[4]);
         if (!t) throw new FixtureError(404, "Das gibt es nicht (mehr).", "not_found");
@@ -358,8 +372,8 @@ export async function fixtureCall<T>(method: "GET" | "POST", rawPath: string, bo
       }
     } else {
       if (rest === "") {
-        const b = body as { name?: string; slug?: string; contact?: BillingContact; removeLogo?: true };
-        s.org = { ...s.org, ...(b.name ? { name: b.name } : {}), ...(b.slug ? { slug: b.slug } : {}), ...(b.contact ? { contact: b.contact } : {}), ...(b.removeLogo ? { logoUrl: null } : {}) };
+        const b = body as { name?: string; slug?: string; contact?: BillingContact; removeLogo?: true; services?: OrgService[] };
+        s.org = { ...s.org, ...(b.name ? { name: b.name } : {}), ...(b.slug ? { slug: b.slug } : {}), ...(b.contact ? { contact: b.contact } : {}), ...(b.removeLogo ? { logoUrl: null } : {}), ...(b.services ? { services: b.services } : {}) };
         return ok;
       }
       if (rest === "logo") {

@@ -75,6 +75,7 @@ export function OwnerOnly({ children }: { children: ReactNode }) {
 const TAB_HREF: Record<string, string> = {
   overview: "/",
   tournaments: "/turniere",
+  wishlists: "/wunschlisten",
   billing: "/abrechnung",
   team: "/team",
   support: "/support",
@@ -199,10 +200,12 @@ function Tabs({ org, role }: { org: PortalOrg | null; role: PortalOrg["role"] | 
   const active = tabOf(path);
   // Until the role is known, show every tab: most people here are owners, and nothing jumps for them.
   const owner = role !== "member";
+  // A service's tab shows while the organisation uses it (and before that's known, Tournament's).
+  const uses = (id: string) => (id === "tournaments" ? !org || org.services.includes("tournament") : id === "wishlists" ? !!org?.services.includes("wishlist") : true);
   return (
     <nav className="ptabs" aria-label="Portal">
       {PORTAL.tabs
-        .filter((t) => owner || (t.id !== "billing" && t.id !== "settings"))
+        .filter((t) => (owner || (t.id !== "billing" && t.id !== "settings")) && (uses(t.id) || active === t.id))
         .map((t) => {
           const n = !org ? 0 : t.id === "support" ? org.counts.openRequests : t.id === "billing" ? org.counts.overdueInvoices : 0;
           return (
@@ -306,6 +309,7 @@ function Toast({ text, tone, onDone }: { text: string; tone?: "err"; onDone: () 
 /** Titles that don't depend on data, so they show while the organisation loads. */
 const TITLES: Record<string, string> = {
   "/turniere": PORTAL.tournaments.h,
+  "/wunschlisten": "Wunschlisten",
   "/abrechnung": PORTAL.billing.h,
   "/team": PORTAL.team.h,
   "/support": PORTAL.support.h,
@@ -368,7 +372,7 @@ export function Shell({ children }: { children: ReactNode }) {
           </Link>
         }
       >
-        Leg eine Organisation an, um Turniere im Namen eures Vereins zu leiten. Oder öffne die Einladung, die du per E-Mail bekommen hast.
+        Leg eine Organisation an, um Turniere und Wunschlisten im Namen eures Vereins zu verwalten. Oder öffne die Einladung, die du per E-Mail bekommen hast.
       </Empty>
     );
   else if (orgQ.error && !org) body = <ErrorCard title="Die Organisation hat nicht geladen" error={orgQ.error} onRetry={orgQ.reload} />;

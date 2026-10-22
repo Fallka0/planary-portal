@@ -2,11 +2,13 @@
 
 import { useRef, useState } from "react";
 import { OwnerOnly, usePortal } from "@/components/Shell";
+import { ServicePicker } from "@/components/services";
 import { Dialog, Ic, PageHead } from "@/components/ui";
 import { PORTAL } from "@/design/portal-copy";
 import { longDate } from "@/lib/fmt";
 import { type OrgError, useOrgAction } from "@/lib/org";
-import type { PortalOrg } from "@/lib/org-contract";
+import type { OrgService, PortalOrg } from "@/lib/org-contract";
+import { SERVICES } from "@/lib/services";
 
 const SLUG = /^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])$/;
 
@@ -53,6 +55,54 @@ function Delete({ org, onClose }: { org: PortalOrg; onClose: () => void }) {
         <input id="del-n" className="inp" type="text" value={confirm} autoComplete="off" onChange={(e) => setConfirm(e.target.value)} />
       </div>
     </Dialog>
+  );
+}
+
+function Services({ org }: { org: PortalOrg }) {
+  const { toast } = usePortal();
+  const act = useOrgAction();
+  const [services, setServices] = useState<OrgService[]>(org.services);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const changed = services.join() !== org.services.join();
+  const off = org.services.filter((x) => !services.includes(x));
+  return (
+    <form
+      className="box form"
+      aria-labelledby="sv-h"
+      noValidate
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (!services.length) return setError("Mindestens ein Dienst bleibt eingeschaltet.");
+        setError("");
+        setBusy(true);
+        try {
+          await act(`/portal/orgs/${org.id}`, { services });
+          toast("Dienste gespeichert.");
+        } catch (x) {
+          toast((x as OrgError).message, "err");
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      <h2 id="sv-h" className="box-t">
+        Dienste
+      </h2>
+      <p className="box-s">Euer Plan {org.plan.name} gilt für alle Dienste. Ausschalten blendet einen Dienst aus, eure Daten bleiben erhalten.</p>
+      <ServicePicker label="Diese Dienste nutzt ihr" value={services} onChange={setServices} error={error} />
+      {off.length ? (
+        <p className="alert info" role="status">
+          <Ic name="info" small />
+          {off.map((x) => SERVICES[x].name).join(" und ")} {off.length === 1 ? "wird" : "werden"} für alle im Team ausgeblendet.
+        </p>
+      ) : null}
+      <div>
+        <button className="btn btn-ink" type="submit" disabled={busy || !changed}>
+          Dienste speichern
+        </button>
+      </div>
+    </form>
   );
 }
 
@@ -136,11 +186,21 @@ function Settings({ org }: { org: PortalOrg }) {
             <label className="f-l" htmlFor="s-s">
               {s.slugL}
             </label>
-            <div className="slug">
-              <span aria-hidden="true">tournament.planary.ch/</span>
-              <input id="s-s" className="inp" type="text" value={slug} spellCheck={false} onChange={(e) => setSlug(e.target.value.toLowerCase())} {...field("slug")} />
-            </div>
-            {errLine("slug")}
+            <input
+              id="s-s"
+              className="inp"
+              type="text"
+              value={slug}
+              spellCheck={false}
+              onChange={(e) => setSlug(e.target.value.toLowerCase())}
+              {...field("slug")}
+              aria-describedby={errs.slug ? "slug-e" : "slug-h"}
+            />
+            {errLine("slug") ?? (
+              <span id="slug-h" className="f-h">
+                Für eure Adressen bei Planary, zum Beispiel tournament.planary.ch/{slug || "kurzname"}.
+              </span>
+            )}
           </div>
           <div className="f">
             <span className="f-l">{s.logoL}</span>
@@ -209,6 +269,7 @@ function Settings({ org }: { org: PortalOrg }) {
         </section>
       </div>
       <div className="stack">
+        <Services org={org} />
         <section className="danger" aria-labelledby="dz-h">
           <div>
             <h2 id="dz-h">{s.dangerH}</h2>

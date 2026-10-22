@@ -11,6 +11,10 @@ export const PORTAL = {
       "label": "Turniere"
     },
     {
+      "id": "wishlists",
+      "label": "Wunschlisten"
+    },
+    {
       "id": "billing",
       "label": "Abrechnung"
     },
@@ -72,7 +76,7 @@ export const PORTAL = {
   },
   "newOrg": {
     "h": "Willkommen, Lena.",
-    "p": "Spielclub Thun ist eingerichtet. Vier Schritte, dann läuft euer erstes Turnier.",
+    "p": "Spielclub Thun ist eingerichtet. Ein paar Schritte, dann seid ihr startklar.",
     "steps": [
       {
         "t": "Organisation angelegt",
@@ -87,7 +91,7 @@ export const PORTAL = {
       },
       {
         "t": "Team einladen",
-        "p": "Wer mit dir Turniere leitet. Im Plan Gratis bist du allein.",
+        "p": "Wer mit dir Turniere leitet und Wunschlisten pflegt. Im Plan Gratis bist du allein.",
         "cta": "Einladen",
         "go": "team"
       },
@@ -167,7 +171,7 @@ export const PORTAL = {
     "h": "Einstellungen",
     "orgH": "Organisation",
     "nameL": "Name",
-    "slugL": "Adresse eurer Turniere",
+    "slugL": "Kurzname",
     "logoL": "Logo",
     "logoP": "Quadratisch, mindestens 512 × 512 px. Erscheint ab Plan Event auch auf dem Beamer.",
     "contactH": "Kontakt",
@@ -176,7 +180,7 @@ export const PORTAL = {
     "addrL": "Rechnungsadresse",
     "save": "Änderungen speichern",
     "dangerH": "Organisation löschen",
-    "dangerP": "Löscht die Organisation, ihre Turniere und Rechnungsdaten nach 30 Tagen. Nur Inhaber können das.",
+    "dangerP": "Löscht die Organisation, ihre Turniere und Rechnungsdaten nach 30 Tagen. Ihre Wunschlisten sind danach für niemanden mehr erreichbar. Nur Inhaber können das.",
     "danger": "Organisation löschen"
   }
 } as const;
