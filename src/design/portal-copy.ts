@@ -51,6 +51,10 @@ export const PORTAL = {
       [
         "Datenschutz",
         "https://planary.ch/datenschutz"
+      ],
+      [
+        "AGB",
+        "https://planary.ch/agb"
       ]
     ]
   },
