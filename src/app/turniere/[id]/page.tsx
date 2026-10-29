@@ -102,8 +102,8 @@ export default function TournamentPage({ params }: PageProps<"/turniere/[id]">) 
     { l: "Spiele gespielt", v: t.matches ? `${t.played} / ${t.matches}` : "–", s: !t.matches ? "Spielplan folgt" : open ? `${num(open)} noch offen` : "alle gespielt", pct: t.matches ? t.played / t.matches : null },
     { l: t.state === "live" ? "Zuschauer jetzt" : "Zuschauer", v: num(t.viewers), s: "über den Link und den Beamer", pct: null },
   ];
-  const planLine = t.plan === "verein" ? "Verein · zählt nicht extra" : t.plan === "event" ? "Event · ein Turnier-Pass" : "Gratis";
-  const exportLine = org.plan.limits.export ? (t.state === "done" ? "CSV und PDF, in Tournament unter Resultate" : "CSV und PDF, sobald das Turnier abgeschlossen ist") : "Ab Plan Event";
+  const planLine = t.plan === "plus" ? "Plus · zählt nicht extra" : t.maxTeams > 16 ? "Turnier-Pass für dieses Turnier" : "Gratis";
+  const exportLine = org.plan.limits.export ? (t.state === "done" ? "CSV und PDF, in Tournament unter Resultate" : "CSV und PDF, sobald das Turnier abgeschlossen ist") : "Mit Turnier-Pass oder Plus";
   const meta = [t.game, tourDateLong(t.startsAt, t.endsAt), t.venue].filter(Boolean).join(" · ");
 
   return (

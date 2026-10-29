@@ -55,9 +55,9 @@ export const PORTAL = {
     ]
   },
   "overdue": {
-    "t": "Rechnung 2026-0142 über CHF 228.00 ist seit 12 Tagen überfällig.",
-    "s": "Bitte bis 3. November bezahlen, sonst wechselt euer Plan zu Gratis. Laufende Turniere sind nicht betroffen.",
-    "cta": "Jetzt bezahlen"
+    "t": "Rechnung 2026-0213 über CHF 149.00 ist seit 12 Tagen offen.",
+    "s": "Plus läuft bis 7. November normal weiter.",
+    "cta": "Bezahlen"
   },
   "incident": {
     "t": "Störung bei Planary: Live-Resultate kommen verzögert an.",
@@ -85,13 +85,13 @@ export const PORTAL = {
       },
       {
         "t": "Logo hochladen",
-        "p": "Für Turniere und Beamer.",
+        "p": "Erscheint im Turnier, mit Turnier-Pass oder Plus auch auf dem Beamer.",
         "cta": "Logo hochladen",
         "go": "settings"
       },
       {
         "t": "Team einladen",
-        "p": "Wer mit dir arbeitet.",
+        "p": "Wer mit dir Turniere leitet. Gratis hat zwei Plätze.",
         "cta": "Einladen",
         "go": "team"
       },
@@ -132,7 +132,7 @@ export const PORTAL = {
     "inviteH": "Jemanden einladen",
     "inviteP": "Die Einladung kommt per E-Mail.",
     "invite": "Einladung senden",
-    "seats": "3 von 5 Plätzen im Plan Verein"
+    "seats": "3 von 10 Plätzen im Plan Plus"
   },
   "support": {
     "h": "Support",
@@ -173,7 +173,7 @@ export const PORTAL = {
     "nameL": "Name",
     "slugL": "Kurzname",
     "logoL": "Logo",
-    "logoP": "Quadratisch, ab 512 × 512 px.",
+    "logoP": "Quadratisch, ab 512 × 512 px. Mit Turnier-Pass oder Plus auch auf dem Beamer.",
     "contactH": "Kontakt",
     "mailL": "E-Mail für Rechnungen",
     "phoneL": "Telefon (freiwillig)",

@@ -86,7 +86,7 @@ function WishlistList() {
           </Table>
           {full ? (
             <p className="box-s" style={{ marginTop: 12 }}>
-              Mehr Wunschlisten gibt es im Plan Verein.
+              Mehr Wunschlisten gibt es mit Plus.
             </p>
           ) : null}
         </section>

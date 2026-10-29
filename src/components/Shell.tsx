@@ -171,7 +171,7 @@ function Banners({ org }: { org: PortalOrg }) {
       {org.banners
         .filter((b) => b.kind === "overdue")
         .map((b) => (
-          <div className="pbanner err" role="alert" key={b.ref}>
+          <div className="pbanner warn" role="status" key={b.ref}>
             <Ic name="alert" />
             <span className="grow">
               <b>{b.title}</b> {b.text}
@@ -212,9 +212,9 @@ function Tabs({ org, role }: { org: PortalOrg | null; role: PortalOrg["role"] | 
             <Link key={t.id} className={`ptab${active === t.id ? " on" : ""}`} href={TAB_HREF[t.id]} aria-current={active === t.id ? "page" : undefined}>
               {t.label}
               {n ? (
-                <span className={`n${t.id === "billing" ? " err" : ""}`}>
+                <span className={`n${t.id === "billing" ? " warn" : ""}`}>
                   {n}
-                  <span className="sr">{t.id === "billing" ? " überfällig" : " offen"}</span>
+                  <span className="sr">{t.id === "billing" ? " Rechnung offen" : " offen"}</span>
                 </span>
               ) : null}
             </Link>
@@ -231,6 +231,7 @@ function Frame({
   orgs,
   busy,
   tabs,
+  slim,
   children,
 }: {
   me: Person | null;
@@ -239,6 +240,8 @@ function Frame({
   orgs: PortalOrgSummary[];
   busy: boolean;
   tabs: boolean;
+  /** Checkout: wordmark, theme and account only. No organisation switcher, tabs or banners. */
+  slim: boolean;
   children: ReactNode;
 }) {
   return (
@@ -256,7 +259,7 @@ function Frame({
             </a>
             <span className="app-n">{PORTAL.app}</span>
           </div>
-          <OrgSwitch org={current} orgs={orgs} />
+          {slim ? null : <OrgSwitch org={current} orgs={orgs} />}
           <div className="top-r">
             <ThemeToggle />
             {me ? (
@@ -270,8 +273,8 @@ function Frame({
           </div>
         </header>
         {busy ? <span className="prog-top" aria-hidden="true" /> : null}
-        {tabs ? <Tabs org={org} role={org?.role ?? current?.role ?? null} /> : null}
-        {org ? <Banners org={org} /> : null}
+        {tabs && !slim ? <Tabs org={org} role={org?.role ?? current?.role ?? null} /> : null}
+        {org && !slim ? <Banners org={org} /> : null}
         <main className="pmain" id="main" tabIndex={-1}>
           {children}
         </main>
@@ -311,6 +314,8 @@ const TITLES: Record<string, string> = {
   "/turniere": PORTAL.tournaments.h,
   "/wunschlisten": "Wunschlisten",
   "/abrechnung": PORTAL.billing.h,
+  "/abrechnung/rechnungen": PORTAL.billing.h,
+  "/abrechnung/wechseln": PORTAL.billing.h,
   "/team": PORTAL.team.h,
   "/support": PORTAL.support.h,
   "/support/neu": PORTAL.newReq.h,
@@ -336,7 +341,9 @@ function PageSkeleton({ title, sub }: { title?: string; sub?: boolean }) {
 }
 
 /** Pages that work before an organisation exists or is chosen. */
-const WITHOUT_ORG = /^\/(neu|einladung)(\/|$)/;
+const WITHOUT_ORG = /^\/(neu|einladung|kasse)(\/|$)/;
+/** Checkout and its done page: slim chrome. */
+const SLIM = /^\/kasse(\/|$)/;
 
 export function Shell({ children }: { children: ReactNode }) {
   const path = usePathname();
@@ -383,7 +390,7 @@ export function Shell({ children }: { children: ReactNode }) {
   return (
     <BaseCtx.Provider value={base}>
       <PortalCtx.Provider value={org && base ? { ...base, org, isOwner: org.role === "owner" } : null}>
-        <Frame me={base?.me ?? null} org={free ? null : org} current={summary} orgs={orgs} busy={!base || (!free && !!orgId && !org && !orgQ.error) || pageBusy} tabs={!free && (!base || !!orgId)}>
+        <Frame me={base?.me ?? null} org={free ? null : org} current={summary} orgs={orgs} busy={!base || (!free && !!orgId && !org && !orgQ.error) || pageBusy} tabs={!free && (!base || !!orgId)} slim={SLIM.test(path)}>
           {body}
         </Frame>
         {note ? <Toast key={note.id} text={note.text} tone={note.tone} onDone={clear} /> : null}

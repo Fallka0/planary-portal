@@ -42,7 +42,7 @@ function Invite({ full, seats }: { full: boolean; seats: number }) {
         {PORTAL.team.inviteH}
       </h2>
       <p className="box-s" style={{ marginTop: 6 }}>
-        {full ? `Alle ${seats} ${seats === 1 ? "Platz" : "Plätze"} belegt. Mehr gibt es im Plan Verein.` : PORTAL.team.inviteP}
+        {full ? `Alle ${seats} ${seats === 1 ? "Platz" : "Plätze"} belegt. Mehr Plätze gibt es mit Plus.` : PORTAL.team.inviteP}
       </p>
       <form className="form" style={{ marginTop: 14 }} onSubmit={send} noValidate>
         <div className="f">

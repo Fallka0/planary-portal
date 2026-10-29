@@ -97,7 +97,6 @@ function PlanCard({ org }: { org: PortalOrg }) {
         {org.plan.name}
         <small>
           {planPrice(org.plan)}
-          {org.plan.period === "month_yearly" ? ", jährlich" : ""}
         </small>
       </h2>
       <div>
@@ -119,7 +118,7 @@ function PlanCard({ org }: { org: PortalOrg }) {
         ))}
       </div>
       <div className="plan-f">
-        <span>{org.renewsAt ? `Nächste Rechnung am ${longDate(org.renewsAt)}` : free ? "Kein Abo, keine Rechnung" : "Keine weitere Rechnung geplant"}</span>
+        <span>{org.renewsAt ? `Verlängert sich am ${longDate(org.renewsAt)}` : free ? "Kein Abo, keine Rechnung" : "Keine weitere Rechnung geplant"}</span>
         {org.role === "owner" ? (
           <Link className="alink" href="/abrechnung">
             {free ? "Pläne vergleichen" : PORTAL.overview.change}

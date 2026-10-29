@@ -33,24 +33,22 @@ export const TOPIC: Record<RequestTopic, string> = {
 
 export const ROLE = { owner: "Inhaber", member: "Mitglied" } as const;
 
-/** "CHF 19 pro Monat", "CHF 49 pro Turnier", "CHF 0" */
+/** "CHF 149 pro Jahr", "CHF 0" */
 export function planPrice(p: Plan) {
-  if (p.period === "forever") return chfShort(p.price);
-  return `${chfShort(p.price)} ${p.period === "tournament" ? "pro Turnier" : "pro Monat"}`;
+  return p.period === "year" ? `${chfShort(p.price)} pro Jahr` : chfShort(p.price);
 }
 
-/** What a plan includes, in the order the boards list it. */
-/** What a plan includes in Tournament. */
+/** What a plan includes in Tournament, in the order the boards list it. */
 export function included(l: PlanLimits) {
   if (!l.branding) {
-    return [`Bis ${l.maxTeams} Teams pro Turnier`, l.maxRunning === 1 ? "Ein laufendes Turnier" : `${l.maxRunning} laufende Turniere`, "Anmeldung, Spielplan, Bracket", "Beamer-Ansicht mit Planary-Logo"];
+    return [`Bis ${l.maxTeams} Teams pro Turnier`, l.maxRunning === 1 ? "Ein Turnier gleichzeitig" : `${l.maxRunning} Turniere gleichzeitig`, `${l.maxOrganisers} Organisatoren`, "Check-in am Turniertag"];
   }
   return [
-    l.maxRunning === null ? "Unbegrenzt viele Turniere" : "Ein Turnier, vom Entwurf bis zum Export",
+    l.maxRunning === null ? "Unbegrenzt viele Turniere gleichzeitig" : `${l.maxRunning} Turniere gleichzeitig`,
     `Bis ${l.maxTeams} Teams pro Turnier`,
-    l.maxOrganisers > 1 ? `Bis ${l.maxOrganisers} Organisatoren` : "Check-in und Warteliste",
-    "Eigenes Logo auf dem Beamer",
-    l.invoice ? "Rechnung per E-Mail" : "Export als CSV und PDF",
+    `${l.maxOrganisers} Organisatoren`,
+    "Eigenes Logo, Warteliste, Export",
+    ...(l.invoice ? ["Zahlung auf Rechnung"] : []),
   ];
 }
 

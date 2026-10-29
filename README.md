@@ -10,7 +10,11 @@ Next.js 16 (App Router), React 19, plain CSS from the handoff boards (`src/app/p
 | --- | --- |
 | `/` | Übersicht: kommende und vergangene Turniere, Plan, Nutzung, offene Anfrage. New organisations get the four-step welcome. |
 | `/turniere`, `/turniere/[id]` | All tournaments with filters; one tournament with its steps, facts, share link and organisers. |
-| `/abrechnung` | Invoices (PDF, pay link), plan switch (Stripe Checkout: Event per tournament by card or TWINT, Verein as a card subscription or by invoice), payment method (Stripe customer portal), billing address. Owners only. |
+| `/abrechnung` | Plan: Gratis (usage meters, what's missing, Turnier-Pass and Plus side by side), Gratis with passes, or Plus (subscription lines, last invoices, usage, payment method, billing contact). The overdue panel, the card-expiry note and the "switches to Gratis" note sit on top when they apply. Owners only. |
+| `/abrechnung/rechnungen` | Every invoice with its status; the selected one shows its lines, total, "Mit Karte bezahlen" and the QR invoice. |
+| `/abrechnung/wechseln` | Switch to Gratis at the end of the paid year: dates, what stays, what changes, who keeps organising (Gratis seats). |
+| `/kasse` | Checkout, slim chrome. `?plan=plus` or `?pass=tournament`, optional `&org=`, `&tournament=` (with `&title=`) and `&return=` (planary.ch hosts only). Picks the organisation (or creates one in step 1 for someone without one), the tournament for a pass, and card or invoice for Plus. Card payments continue at Stripe through the URL the API returns; the portal never shows card fields. A declined card comes back here with the reason. |
+| `/kasse/fertig?id=` | After paying: waits for the confirmation, then what's unlocked and the way back (the tournament from `return`, team, logo, receipt). |
 | `/team` | Members, roles, pending invitations, invite form. Members read only. |
 | `/support`, `/support/neu`, `/support/[id]` | Requests, "Etwas stimmt nicht" with topic, tournament, image and "läuft gerade", the thread with reply and attachment, "Als erledigt markieren". |
 | `/einstellungen` | Name, tournament address, logo, contact, billing address, delete (30 days). Owners only. |
@@ -39,13 +43,19 @@ Fixture mode answers from the handoff's sample data (`src/lib/portal-fixtures.ts
 | --- | --- |
 | (none) | Verein Gurten LAN, Matteo Keller as owner |
 | `new` | Spielclub Thun, just created (welcome checklist, plan Gratis) |
-| `overdue` | Invoice 2026-0142 twelve days overdue (red banner, red tab count, "Bezahlen") |
+| `gratis` | Spielclub Thun on Gratis with some use (PL-Plan-Gratis) |
+| `pass` | Spielclub Thun on Gratis with two passes (PL-Plan-Pass) |
+| `overdue` | Invoice 2026-0213 twelve days open: amber banner and tab count, the overdue panel |
+| `card` | The card expires before Plus renews |
+| `canceling` | Plus switches to Gratis at the end of the year |
+| `payfail` | Checkout: the card comes back declined |
+| `billing-error`, `billing-loading` | Only the billing call fails or hangs (PL-Plan-Error, PL-Plan-Loading) |
 | `incident` | The amber incident banner |
 | `member` | Noa Brunner as member: no Abrechnung or Einstellungen, team read only |
-| `none` | Signed in without an organisation |
+| `none` | Noa Brunner, signed in without an organisation (solo checkout creates one) |
 | `error`, `loading` | The error card and the loading state |
 
-Writes change an in-memory copy, so sending a request, replying, inviting or saving settings can be clicked through.
+Writes change an in-memory copy, so sending a request, replying, inviting, saving settings, checking out (paid at once, the provider is skipped) and switching to Gratis can be clicked through.
 
 ## Deploy
 

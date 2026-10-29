@@ -3,7 +3,15 @@
 // Writes change an in-memory copy, so flows (send a request, invite someone) can be clicked through.
 
 import type {
+  Billing,
   BillingContact,
+  BillingState,
+  CheckoutBody,
+  CheckoutStatus,
+  Pass,
+  PassEntitlement,
+  PayBy,
+  SubscriptionLine,
   Invoice,
   MemberRole,
   OrgService,
@@ -25,24 +33,28 @@ import type {
 const NOW = Date.parse("2026-10-20T20:11:00+02:00");
 const at = (iso: string) => Date.parse(iso);
 
-type State = "default" | "new" | "overdue" | "incident" | "member" | "none" | "error" | "loading";
+// default: Verein Gurten LAN on Plus. gratis / pass / new: Spielclub Thun on Gratis (with usage, with passes, brand new).
+// overdue, card (card expires before the renewal), canceling: Gurten in that billing state.
+// none: signed in without an organisation (solo checkout). payfail: the card payment comes back declined.
+// billing-error / billing-loading: only the billing call fails or hangs (PL-Plan-Error, PL-Plan-Loading).
+type State = "default" | "new" | "gratis" | "pass" | "overdue" | "card" | "canceling" | "incident" | "member" | "none" | "payfail" | "billing-error" | "billing-loading" | "error" | "loading";
+const STATES: State[] = ["new", "gratis", "pass", "overdue", "card", "canceling", "incident", "member", "none", "payfail", "billing-error", "billing-loading", "error", "loading"];
 
 function fixtureState(): State {
   if (typeof window === "undefined") return "default";
   const s = new URLSearchParams(window.location.search).get("state");
-  return (["new", "overdue", "incident", "member", "none", "error", "loading"] as const).find((x) => x === s) ?? "default";
+  return STATES.find((x) => x === s) ?? "default";
 }
 
 const LIMITS = {
-  gratis: { maxTeams: 16, maxRunning: 1, maxOrganisers: 1, branding: false, checkIn: false, waitingList: false, export: false, matchDaySupport: false, invoice: false },
-  event: { maxTeams: 128, maxRunning: 1, maxOrganisers: 1, branding: true, checkIn: true, waitingList: true, export: true, matchDaySupport: true, invoice: false },
-  verein: { maxTeams: 128, maxRunning: null, maxOrganisers: 5, branding: true, checkIn: true, waitingList: true, export: true, matchDaySupport: true, invoice: true },
+  gratis: { maxTeams: 16, maxRunning: 1, maxOrganisers: 2, branding: false, checkIn: true, waitingList: false, export: false, matchDaySupport: false, invoice: false },
+  plus: { maxTeams: 128, maxRunning: null, maxOrganisers: 10, branding: true, checkIn: true, waitingList: true, export: true, matchDaySupport: true, invoice: true },
 };
 const PLANS: Record<PlanId, Plan> = {
-  gratis: { id: "gratis", name: "Gratis", price: 0, period: "forever", placeholder: true, limits: LIMITS.gratis, wishlist: { maxLists: 2 } },
-  event: { id: "event", name: "Event", price: 4900, period: "tournament", placeholder: true, limits: LIMITS.event, wishlist: { maxLists: 2 } },
-  verein: { id: "verein", name: "Verein", price: 1900, period: "month_yearly", placeholder: true, limits: LIMITS.verein, wishlist: { maxLists: null } },
+  gratis: { id: "gratis", name: "Gratis", price: 0, period: "forever", limits: LIMITS.gratis, wishlist: { maxLists: 3 } },
+  plus: { id: "plus", name: "Plus", price: 14900, period: "year", limits: LIMITS.plus, wishlist: { maxLists: null } },
 };
+const PASS: Pass = { id: "tournament_pass", name: "Turnier-Pass", nameEn: "Tournament Pass", price: 2900, period: "tournament", limits: { ...LIMITS.plus, maxRunning: 1, matchDaySupport: false, invoice: false } };
 
 const MATTEO: Person = { id: "u_matteo", name: "Matteo Keller", email: "matteo.keller@gurtenlan.ch" };
 const LENA: Person = { id: "u_lena", name: "Lena Aebi", email: "lena.aebi@spielclub-thun.ch" };
@@ -59,7 +71,7 @@ function tour(t: Partial<TournamentSummary> & Pick<TournamentSummary, "id" | "sl
     organisationId: "org_gurten",
     organisationName: "Verein Gurten LAN",
     ownerId: MATTEO.id,
-    plan: "verein",
+    plan: "plus",
     viewers: 0,
     updatedAt: NOW - 3_600_000,
     ...t,
@@ -73,7 +85,7 @@ const TOURS: TournamentSummary[] = [
   tour({ id: "t_sommer", slug: "sommer-lan", name: "Sommer-LAN", game: "Counter-Strike 2", state: "done", startsAt: at("2026-08-09T10:00:00+02:00"), teams: 16, maxTeams: 16 }),
   tour({ id: "t_fruehling", slug: "fruehlings-cup", name: "Frühlings-Cup", game: "Valorant", state: "done", startsAt: at("2026-04-26T10:00:00+02:00"), teams: 12, maxTeams: 16 }),
   tour({ id: "t_rl", slug: "rocket-league-night", name: "Rocket League Night", game: "Rocket League", state: "done", startsAt: at("2026-03-14T18:00:00+01:00"), teams: 8, maxTeams: 8 }),
-  tour({ id: "t_warmup", slug: "gurten-lan-warm-up", name: "Gurten LAN Warm-up", game: "Counter-Strike 2", state: "done", startsAt: at("2026-02-15T10:00:00+01:00"), teams: 10, maxTeams: 16, plan: "event" }),
+  tour({ id: "t_warmup", slug: "gurten-lan-warm-up", name: "Gurten LAN Warm-up", game: "Counter-Strike 2", state: "done", startsAt: at("2026-02-15T10:00:00+01:00"), teams: 10, maxTeams: 16 }),
 ];
 
 const INCIDENT: PortalBanner = {
@@ -86,14 +98,15 @@ const INCIDENT: PortalBanner = {
 
 const OVERDUE: PortalBanner = {
   kind: "overdue",
-  title: "Rechnung 2026-0142 über CHF 228.00 ist seit 12 Tagen überfällig.",
-  text: "Bitte bis 3. November bezahlen, sonst wechselt euer Plan zu Gratis. Laufende Turniere sind nicht betroffen.",
-  ref: "inv_0142",
+  title: "Rechnung 2026-0213 über CHF 149.00 ist seit 12 Tagen offen.",
+  text: "Plus läuft bis 7. November normal weiter.",
+  ref: "inv_0213",
   tournamentIds: [],
 };
 
 interface OrgStore {
   org: PortalOrg;
+  billing: Omit<Billing, "plans" | "pass" | "current" | "invoices" | "paymentMethod" | "contact" | "renewsAt" | "usage" | "state">;
   tournaments: TournamentSummary[];
   wishlists: OrgWishlist[];
   invoices: Invoice[];
@@ -107,34 +120,58 @@ function gurten(state: State): OrgStore {
   const role: MemberRole = state === "member" ? "member" : "owner";
   const overdue = state === "overdue";
   const contact: BillingContact = { email: "kasse@gurtenlan.ch", phone: "+41 31 000 00 00", address: ["Verein Gurten LAN", "z. H. Kassier", "Postfach 123", "3000 Bern"] };
+  const plusLine: SubscriptionLine = { kind: "base", name: "Plus", period: "year", amount: 14900, tournamentId: null };
+  const warmup: SubscriptionLine = { kind: "once", name: "Turnier-Pass · Gurten LAN Warm-up", period: "once", amount: 2900, tournamentId: "t_warmup" };
+  const plusInvoice: Invoice = overdue
+    ? {
+        id: "inv_0213",
+        number: "2026-0213",
+        createdAt: at("2026-09-12T09:00:00+02:00"),
+        dueAt: at("2026-10-12T23:59:00+02:00"),
+        amount: 14900,
+        currency: "CHF",
+        status: "open",
+        description: "Plus, 3.2.2026 bis 2.2.2027",
+        lines: [plusLine],
+        paidWith: null,
+        overdueDays: 12,
+        pdfUrl: "https://org.planary.ch/files/invoices/2026-0213.pdf",
+        payUrl: "https://invoice.stripe.com/i/test_2026-0213",
+      }
+    : {
+        id: "inv_0031",
+        number: "2026-0031",
+        createdAt: at("2026-02-03T09:00:00+01:00"),
+        dueAt: at("2026-03-05T23:59:00+01:00"),
+        amount: 14900,
+        currency: "CHF",
+        status: "paid",
+        description: "Plus, 3.2.2026 bis 2.2.2027",
+        lines: [plusLine],
+        paidWith: "invoice",
+        overdueDays: 0,
+        pdfUrl: "https://org.planary.ch/files/invoices/2026-0031.pdf",
+        payUrl: null,
+      };
   const invoices: Invoice[] = [
+    plusInvoice,
     {
-      id: "inv_0142",
-      number: "2026-0142",
-      createdAt: at("2026-09-24T09:00:00+02:00"),
-      dueAt: at("2026-10-08T23:59:00+02:00"),
-      amount: 22800,
-      currency: "CHF",
-      status: overdue ? "open" : "paid",
-      description: "Plan Verein, 3.2.2026 bis 2.2.2027 (Wechsel von Event, anteilig)",
-      overdueDays: overdue ? 12 : 0,
-      pdfUrl: "https://org.planary.ch/files/invoices/2026-0142.pdf",
-      payUrl: overdue ? "https://checkout.stripe.com/c/pay/test_2026-0142" : null,
-    },
-    {
-      id: "inv_0031",
-      number: "2026-0031",
-      createdAt: at("2026-02-03T09:00:00+01:00"),
-      dueAt: at("2026-02-03T23:59:00+01:00"),
-      amount: 4900,
+      id: "inv_0009",
+      number: "2026-0009",
+      createdAt: at("2026-01-15T09:00:00+01:00"),
+      dueAt: at("2026-01-15T23:59:00+01:00"),
+      amount: 2900,
       currency: "CHF",
       status: "paid",
-      description: "Plan Event, Gurten LAN Warm-up",
+      description: "Turnier-Pass, Gurten LAN Warm-up",
+      lines: [warmup],
+      paidWith: "card",
       overdueDays: 0,
-      pdfUrl: "https://org.planary.ch/files/invoices/2026-0031.pdf",
+      pdfUrl: "https://org.planary.ch/files/invoices/2026-0009.pdf",
       payUrl: null,
     },
   ];
+  const billingState: BillingState = overdue ? "overdue" : state === "card" ? "card_expires" : state === "canceling" ? "canceling" : "active";
   const me = state === "member" ? { ...NOA, me: true } : { ...MATTEO, me: true };
   const members: PortalMember[] = [
     { ...MATTEO, role: "owner", lastActive: NOW - 60_000, me: me.id === MATTEO.id },
@@ -223,9 +260,11 @@ function gurten(state: State): OrgStore {
       slug: "gurten-lan",
       logoUrl: null,
       role,
-      plan: PLANS.verein,
+      plan: PLANS.plus,
       services: ["tournament", "wishlist"],
       renewsAt: at("2027-02-03T00:00:00+01:00"),
+      billingState,
+      activePasses: 0,
       createdAt: at("2026-02-01T12:00:00+01:00"),
       contact,
       usage: { tournamentsThisYear: 7, largestTournament: 32, organisers: 3 },
@@ -239,14 +278,58 @@ function gurten(state: State): OrgStore {
       { id: 42, title: "Tombola Gurten LAN", items: 14, value: 61200, shared: true, createdBy: "Noa Brunner", updatedAt: at("2026-10-20T19:02:00+02:00"), url: "https://wishlist.planary.ch/app/lists/42" },
     ],
     invoices,
-    paymentMethod: { brand: "visa", last4: "4242", expMonth: 8, expYear: 2028, kind: "card" },
+    paymentMethod: state === "card" ? { brand: "visa", last4: "4242", expMonth: 11, expYear: 2026, kind: "card" } : { brand: "visa", last4: "4242", expMonth: 8, expYear: 2028, kind: "card" },
+    billing: {
+      lines: [plusLine, warmup],
+      passes: [{ id: "pass_warmup", tournamentId: "t_warmup", tournamentName: "Gurten LAN Warm-up", boughtAt: at("2026-01-15T09:00:00+01:00"), amount: 2900, state: "done", teams: 10, invoiceId: "inv_0009", receiptUrl: "https://org.planary.ch/files/invoices/2026-0009.pdf" }],
+      payBy: overdue ? "invoice" : "card",
+      reminderAt: at("2027-01-04T00:00:00+01:00"),
+      graceUntil: overdue ? at("2026-11-07T00:00:00+01:00") : null,
+      cancelAt: state === "canceling" ? at("2027-02-03T00:00:00+01:00") : null,
+    },
     members,
     invites: [{ id: "inv_luca", email: "luca.steiner@example.ch", role: "member", sentAt: at("2026-10-18T09:00:00+02:00") }],
     requests,
   };
 }
 
-function thun(): OrgStore {
+const LENA_MAIL = "lena@spielclub-thun.ch";
+
+/** Spielclub Thun on Gratis: brand new, with some use, or with passes. */
+function thun(kind: "new" | "gratis" | "pass" = "new"): OrgStore {
+  const used = kind !== "new";
+  const t = (x: Partial<TournamentSummary> & Pick<TournamentSummary, "id" | "slug" | "name" | "game" | "state">) =>
+    tour({ organisationId: "org_thun", organisationName: "Spielclub Thun", ownerId: LENA.id, plan: "gratis", ...x });
+  const tournaments: TournamentSummary[] = !used
+    ? []
+    : [
+        t({ id: "t_wintercup", slug: "planary-winter-cup", name: "Planary Winter Cup", game: "Counter-Strike 2", state: "draft", startsAt: at("2026-12-12T10:00:00+01:00"), teams: 0, maxTeams: 16 }),
+        t({ id: "t_herbst", slug: "thuner-herbst-cup", name: "Thuner Herbst-Cup", game: "Valorant", state: "open", startsAt: at("2026-11-14T10:00:00+01:00"), teams: kind === "pass" ? 23 : 12, maxTeams: kind === "pass" ? 128 : 16 }),
+        t({ id: "t_friday", slug: "friday-night-cup", name: "Friday Night Cup", game: "Rocket League", state: "draft" }),
+        t({ id: "t_fruehling_thun", slug: "fruehlings-turnier", name: "Frühlings-Turnier", game: "Valorant", state: "done", startsAt: at("2026-04-25T10:00:00+02:00"), teams: 40, maxTeams: 128 }),
+      ];
+  const passes: PassEntitlement[] =
+    kind === "pass"
+      ? [
+          { id: "pass_herbst", tournamentId: "t_herbst", tournamentName: "Thuner Herbst-Cup", boughtAt: at("2026-10-12T10:00:00+02:00"), amount: 2900, state: "active", teams: 23, invoiceId: "inv_0190", receiptUrl: "https://org.planary.ch/files/invoices/2026-0190.pdf" },
+          { id: "pass_fruehling", tournamentId: "t_fruehling_thun", tournamentName: "Frühlings-Turnier", boughtAt: at("2026-04-02T10:00:00+02:00"), amount: 2900, state: "done", teams: 40, invoiceId: "inv_0061", receiptUrl: "https://org.planary.ch/files/invoices/2026-0061.pdf" },
+        ]
+      : [];
+  const invoices: Invoice[] = passes.map((x, n) => ({
+    id: x.invoiceId ?? `inv_p${n}`,
+    number: n ? "2026-0061" : "2026-0190",
+    createdAt: x.boughtAt,
+    dueAt: x.boughtAt,
+    amount: x.amount,
+    currency: "CHF",
+    status: "paid",
+    description: `Turnier-Pass, ${x.tournamentName}`,
+    lines: [{ kind: "once", name: `Turnier-Pass · ${x.tournamentName}`, period: "once", amount: x.amount, tournamentId: x.tournamentId }],
+    paidWith: "card",
+    overdueDays: 0,
+    pdfUrl: x.receiptUrl,
+    payUrl: null,
+  }));
   return {
     org: {
       id: "org_thun",
@@ -258,31 +341,42 @@ function thun(): OrgStore {
       plan: PLANS.gratis,
       services: ["tournament", "wishlist"],
       renewsAt: null,
-      createdAt: NOW - 20 * 60_000,
-      contact: { email: LENA.email, phone: "", address: ["Spielclub Thun", "3600 Thun"] },
-      usage: { tournamentsThisYear: 0, largestTournament: 0, organisers: 1 },
-      onboarding: { logo: false, team: false, tournament: false },
+      billingState: "free",
+      activePasses: passes.filter((x) => x.state === "active").length,
+      createdAt: used ? at("2026-03-01T12:00:00+01:00") : NOW - 20 * 60_000,
+      contact: { email: LENA_MAIL, phone: "", address: ["Spielclub Thun", "Lena Aebi", "Bälliz 12", "3600 Thun"] },
+      usage: { tournamentsThisYear: used ? 4 : 0, largestTournament: used ? 12 : 0, organisers: 1 },
+      onboarding: { logo: false, team: false, tournament: used },
       banners: [],
       counts: { openRequests: 0, overdueInvoices: 0 },
     },
-    tournaments: [],
-    wishlists: [],
-    invoices: [],
-    paymentMethod: null,
-    members: [{ ...LENA, role: "owner", lastActive: NOW - 60_000, me: true }],
+    tournaments,
+    wishlists: used ? [{ id: 51, title: "Preise Herbst-Cup", items: 4, value: 18000, shared: true, createdBy: "Lena Aebi", updatedAt: at("2026-10-18T18:00:00+02:00"), url: "https://wishlist.planary.ch/app/lists/51" }] : [],
+    invoices,
+    paymentMethod: passes.length ? { brand: "mastercard", last4: "5100", expMonth: 4, expYear: 2028, kind: "card" } : null,
+    billing: {
+      lines: passes.filter((x) => x.boughtAt >= at("2026-01-01T00:00:00+01:00")).map((x) => ({ kind: "once", name: `Turnier-Pass · ${x.tournamentName}`, period: "once", amount: x.amount, tournamentId: x.tournamentId })),
+      passes,
+      payBy: null,
+      reminderAt: null,
+      graceUntil: null,
+      cancelAt: null,
+    },
+    members: [{ ...LENA, email: LENA_MAIL, role: "owner", lastActive: NOW - 60_000, me: true }],
     invites: [],
     requests: [],
   };
 }
 
-let db: { state: State; me: Person; stores: OrgStore[] } | null = null;
+let db: { state: State; me: Person; stores: OrgStore[]; checkouts: Record<string, CheckoutStatus> } | null = null;
 
 function data() {
   const state = fixtureState();
   if (!db || db.state !== state) {
-    if (state === "none") db = { state, me: MATTEO, stores: [] };
-    else if (state === "new") db = { state, me: LENA, stores: [thun()] };
-    else db = { state, me: state === "member" ? NOA : MATTEO, stores: [gurten(state)] };
+    if (state === "none") db = { state, me: NOA, stores: [], checkouts: {} };
+    else if (state === "new") db = { state, me: { ...LENA, email: LENA_MAIL }, stores: [thun("new")], checkouts: {} };
+    else if (state === "gratis" || state === "pass" || state === "payfail") db = { state, me: { ...LENA, email: LENA_MAIL }, stores: [thun(state === "pass" ? "pass" : "gratis")], checkouts: {} };
+    else db = { state, me: state === "member" ? NOA : MATTEO, stores: [gurten(state)], checkouts: {} };
   }
   return db;
 }
@@ -321,6 +415,62 @@ function detail(s: OrgStore, t: TournamentSummary): PortalTournamentDetail {
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+const YEAR = 365 * 86_400_000;
+
+function billingOf(s: OrgStore): Billing {
+  const plan = s.org.plan;
+  const running = s.tournaments.filter((t) => t.state === "live" || t.state === "open").length;
+  return {
+    plans: Object.values(PLANS),
+    pass: PASS,
+    current: plan.id,
+    state: s.org.billingState,
+    ...s.billing,
+    invoices: s.invoices,
+    paymentMethod: s.paymentMethod,
+    contact: s.org.contact,
+    renewsAt: s.org.renewsAt,
+    usage: { largestTournament: s.org.usage.largestTournament, running: plan.id === "plus" ? 2 : Math.min(running, 1), organisers: s.org.usage.organisers, wishlists: s.wishlists.length },
+  };
+}
+
+/** A checkout in the fixtures: paid at once (the provider is skipped), or declined in `payfail`. */
+function checkout(d: NonNullable<typeof db>, s: OrgStore, body: CheckoutBody): { url: string; checkoutId: string } {
+  const id = `co_${Object.keys(d.checkouts).length + 1}`;
+  const plan = "plan" in body;
+  const t = plan ? null : s.tournaments.find((x) => x.id === body.tournamentId);
+  if (!plan && !t) throw new FixtureError(404, "Dieses Turnier gibt es in der Organisation nicht.", "not_found");
+  const payBy: PayBy = plan ? body.payBy : "card";
+  const failed = d.state === "payfail" && payBy === "card";
+  const amount = plan ? (payBy === "invoice" ? 0 : PLANS.plus.price) : PASS.price;
+  d.checkouts[id] = {
+    id,
+    orgId: s.org.id,
+    kind: plan ? "plan" : "pass",
+    state: failed ? "failed" : "paid",
+    failure: failed ? "Deine Bank hat die Karte abgelehnt." : null,
+    amount,
+    payBy,
+    tournamentId: t?.id ?? null,
+    tournamentName: t?.name ?? null,
+    receiptEmail: s.org.contact.email,
+    receiptUrl: failed ? null : "https://org.planary.ch/files/invoices/2026-0221.pdf",
+    returnTo: body.returnTo ?? null,
+  };
+  if (!failed && plan) {
+    s.org = { ...s.org, plan: PLANS.plus, renewsAt: NOW + YEAR, billingState: "active" };
+    s.billing = { ...s.billing, payBy, reminderAt: NOW + YEAR - 30 * 86_400_000, lines: [{ kind: "base", name: "Plus", period: "year", amount: PLANS.plus.price, tournamentId: null }, ...s.billing.lines] };
+  }
+  if (!failed && t) {
+    const entitlement: PassEntitlement = { id: `pass_${id}`, tournamentId: t.id, tournamentName: t.name, boughtAt: NOW, amount: PASS.price, state: "active", teams: t.teams, invoiceId: null, receiptUrl: "https://org.planary.ch/files/invoices/2026-0221.pdf" };
+    s.billing = { ...s.billing, passes: [entitlement, ...s.billing.passes], lines: [...s.billing.lines, { kind: "once", name: `Turnier-Pass · ${t.name}`, period: "once", amount: PASS.price, tournamentId: t.id }] };
+    s.tournaments = s.tournaments.map((x) => (x.id === t.id ? { ...x, maxTeams: Math.max(x.maxTeams, 16) } : x));
+    s.org = { ...s.org, activePasses: s.org.activePasses + 1 };
+  }
+  // The fixtures keep their state in the URL; the provider would bring people back here.
+  return { url: `/kasse/fertig?id=${id}${d.state === "default" ? "" : `&state=${d.state}`}`, checkoutId: id };
+}
+
 export async function fixtureCall<T>(method: "GET" | "POST", rawPath: string, body?: unknown): Promise<T> {
   const d = data();
   if (d.state === "loading") return new Promise<T>(() => {});
@@ -330,6 +480,8 @@ export async function fixtureCall<T>(method: "GET" | "POST", rawPath: string, bo
     throw Object.assign(new Error(e.message), { status: 503, code: e.code, requestId: "req_7f3a9c21", at: NOW });
   }
   const path = rawPath.split("?")[0];
+  if (path.endsWith("/billing") && d.state === "billing-loading") return new Promise<T>(() => {});
+  if (path.endsWith("/billing") && d.state === "billing-error") throw Object.assign(new Error("Planary antwortet gerade nicht."), { status: 503, code: "unavailable", requestId: "req_7f3a9c21", at: NOW });
   const seg = path.split("/").filter(Boolean); // ["portal", "orgs", id, ...]
   const ok = { ok: true } as T;
   try {
@@ -343,6 +495,22 @@ export async function fixtureCall<T>(method: "GET" | "POST", rawPath: string, bo
       s.org = { ...s.org, id: `org_${b.slug}`, name: b.name, slug: b.slug, services: b.services, initials: b.name.slice(0, 2).toUpperCase(), createdAt: NOW };
       d.stores.push(s);
       return { id: s.org.id } as T;
+    }
+    if (method === "POST" && path === "/portal/checkout") {
+      const b = body as CheckoutBody & { org: { name: string; email: string } };
+      const slug = b.org.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      const n = thun("gratis");
+      n.org = { ...n.org, id: `org_${slug}`, name: b.org.name, slug, initials: b.org.name.slice(0, 2).toUpperCase(), createdAt: NOW, contact: { email: b.org.email, phone: "", address: [b.org.name] }, onboarding: { logo: false, team: false, tournament: true } };
+      n.members = [{ ...d.me, role: "owner", lastActive: NOW, me: true }];
+      // The solo organiser's own tournaments join the new organisation.
+      n.tournaments = n.tournaments.filter((t) => t.state !== "done").map((t) => ({ ...t, organisationId: n.org.id, organisationName: n.org.name, ownerId: d.me.id }));
+      d.stores.push(n);
+      return { ...checkout(d, n, "pass" in b ? { ...b, tournamentId: n.tournaments.some((t) => t.id === b.tournamentId) ? b.tournamentId : n.tournaments[0].id } : b), orgId: n.org.id } as T;
+    }
+    if (method === "GET" && seg[1] === "checkout" && seg[2]) {
+      const c = d.checkouts[seg[2]];
+      if (!c) throw new FixtureError(404, "Das gibt es nicht (mehr).", "not_found");
+      return c as T;
     }
     if (method === "POST" && seg[1] === "invites" && seg[3] === "accept") {
       if (!d.stores.length) d.stores.push(gurten("member"));
@@ -362,7 +530,7 @@ export async function fixtureCall<T>(method: "GET" | "POST", rawPath: string, bo
         if (!t) throw new FixtureError(404, "Das gibt es nicht (mehr).", "not_found");
         return detail(s, t) as T;
       }
-      if (rest === "billing") return { plans: Object.values(PLANS), current: s.org.plan.id, invoices: s.invoices, paymentMethod: s.paymentMethod, contact: s.org.contact, renewsAt: s.org.renewsAt } as T;
+      if (rest === "billing") return billingOf(s) as T;
       if (rest === "members") return { members: s.members, invites: s.invites, seats: s.org.plan.limits.maxOrganisers } as T;
       if (rest === "requests") return { requests: s.requests.map((r) => Object.fromEntries(Object.entries(r).filter(([k]) => k !== "messages"))) } as T;
       if (seg[3] === "requests" && seg[4]) {
@@ -383,7 +551,25 @@ export async function fixtureCall<T>(method: "GET" | "POST", rawPath: string, bo
         return { logoUrl: url } as T;
       }
       if (rest === "delete") return { deleteAt: NOW + 30 * 86_400_000 } as T;
-      if (rest === "checkout" || rest === "billing-portal") return { url: "https://checkout.stripe.com/c/pay/test_fixture" } as T;
+      if (rest === "checkout") return checkout(d, s, body as CheckoutBody) as T;
+      if (rest === "billing-portal") return { url: "https://billing.stripe.com/p/session/test_fixture" } as T;
+      if (rest === "pay-by") {
+        s.billing = { ...s.billing, payBy: (body as { payBy: PayBy }).payBy };
+        if (s.org.billingState === "card_expires") s.org = { ...s.org, billingState: "active" };
+        return ok;
+      }
+      if (seg[3] === "invoices" && seg[5] === "pay") return { url: s.invoices.find((i) => i.id === seg[4])?.payUrl ?? "https://invoice.stripe.com/i/test_fixture" } as T;
+      if (rest === "cancel") {
+        const cancelAt = s.org.renewsAt ?? NOW;
+        s.org = { ...s.org, billingState: "canceling" };
+        s.billing = { ...s.billing, cancelAt };
+        return { cancelAt } as T;
+      }
+      if (rest === "cancel/undo") {
+        s.org = { ...s.org, billingState: "active" };
+        s.billing = { ...s.billing, cancelAt: null };
+        return ok;
+      }
       if (rest === "invites") {
         const b = body as { email: string; role: MemberRole };
         if (s.members.length + s.invites.length >= s.org.plan.limits.maxOrganisers) throw new FixtureError(409, "Alle Plätze im Plan sind belegt.", "seats_full");
