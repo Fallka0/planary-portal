@@ -323,6 +323,9 @@ function Checkout() {
           <p className="co-fine">
             {isPass ? B.checkout.passRule : `Verlängert sich am ${longDate(nowMs + YEAR)}. Wir erinnern dich 30 Tage vorher, kündigen geht im Portal mit einem Klick.`}
           </p>
+          <p className="co-fine">
+            Mit dem Kauf akzeptierst du die <a href="https://planary.ch/agb">AGB</a>, einschliesslich der <a href="https://planary.ch/agb#rueckerstattung">Rückerstattung</a>. Wie wir Daten bearbeiten, steht in der <a href="https://planary.ch/datenschutz">Datenschutzerklärung</a>.
+          </p>
         </aside>
       </div>
     </>
