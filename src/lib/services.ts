@@ -22,7 +22,7 @@ export const SERVICES: Record<OrgService, { name: string; what: string; url: str
 
 export const SERVICE_IDS: OrgService[] = ["tournament", "wishlist"];
 
-/** "2 von 2 Wunschlisten im Plan Gratis" or "3 Wunschlisten, unbegrenzt im Plan Verein". */
+/** "2 von 2 Wunschlisten im Plan Gratis" or "3 Wunschlisten, unbegrenzt im Plan Plus". */
 export function wishlistRoom(count: number, max: number | null, plan: string) {
   const n = `${num(count)} ${count === 1 ? "Wunschliste" : "Wunschlisten"}`;
   return max === null ? `${n}, unbegrenzt im Plan ${plan}` : `${num(count)} von ${num(max)} Wunschlisten im Plan ${plan}`;

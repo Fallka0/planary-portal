@@ -29,14 +29,17 @@ function NewRequest() {
   const { org } = usePortal();
   const router = useRouter();
   // From Tournament's "Etwas stimmt nicht": that tournament, preselected.
-  const asked = useSearchParams().get("turnier");
+  const params = useSearchParams();
+  const asked = params.get("turnier");
+  // From Abrechnung ("Mehr Zeit nötig?", "Grössere Organisation?"): a billing request.
+  const askedTopic = params.get("topic");
   const act = useOrgAction();
   const nowMs = now();
   const { data } = useOrg<PortalApi["GET /portal/orgs/:id/tournaments"]["R"]>(`/portal/orgs/${org.id}/tournaments`);
   const tours = data?.tournaments ?? [];
   const live = tours.find((t) => t.state === "live");
 
-  const [topic, setTopic] = useState<RequestTopic>("tournament");
+  const [topic, setTopic] = useState<RequestTopic>(askedTopic === "billing" || askedTopic === "plan" ? "billing" : "tournament");
   const [picked, setPicked] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);

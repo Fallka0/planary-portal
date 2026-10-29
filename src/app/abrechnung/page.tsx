@@ -1,145 +1,238 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { BillingError, BillingHead, BillingLoading, FiveLine, InvoiceRow, Lines, Meter, PassCard, PlusCard } from "@/components/billing";
 import { OwnerOnly, usePageBusy, usePortal } from "@/components/Shell";
 import { planPrice } from "@/components/status";
-import { Chip, Dialog, ErrorCard, Ic, Loading, PageHead, Sk, Table, Td } from "@/components/ui";
-import { PORTAL } from "@/design/portal-copy";
-import { chf, chfShort, date, longDate } from "@/lib/fmt";
+import { Chip, Ic } from "@/components/ui";
+import { PORTAL_BILLING as B } from "@/design/billing-copy";
+import { kasseHref, nextInvoice } from "@/lib/billing";
+import { chf, chfShort, dateNarrow, longDate, shortDay } from "@/lib/fmt";
 import { now, type OrgError, useOrg, useOrgAction } from "@/lib/org";
-import type { Invoice, Plan, PlanId, PortalApi } from "@/lib/org-contract";
+import type { Billing, Plan, PortalApi } from "@/lib/org-contract";
 
-type Billing = PortalApi["GET /portal/orgs/:id/billing"]["R"];
+const MONTH = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
 
-function invoiceState(i: Invoice): { chip: string; label: string; pay: boolean } {
-  if (i.status === "paid") return { chip: "ok", label: "Bezahlt", pay: false };
-  if (i.status === "void") return { chip: "", label: "Storniert", pay: false };
-  if (i.status === "uncollectible") return { chip: "err", label: "Nicht bezahlt", pay: false };
-  if (i.status === "draft") return { chip: "", label: "Entwurf", pay: false };
-  if (i.overdueDays > 0) return { chip: "err", label: `Überfällig seit ${i.overdueDays} ${i.overdueDays === 1 ? "Tag" : "Tagen"}`, pay: true };
-  return { chip: "warn", label: "Offen", pay: true };
+/** "3. Februar" from a date (the year is clear from the banner around it). */
+const dayMonthLong = (ms: number) => longDate(ms).replace(/ \d{4}$/, "");
+
+function plusOf(b: Billing): Plan {
+  return b.plans.find((p) => p.id === "plus") ?? b.plans[b.plans.length - 1];
 }
 
-const PLAN_SUB: Record<PlanId, (p: Plan) => string> = {
-  gratis: (p) => `bis ${p.limits.maxTeams} Teams, ${p.wishlist.maxLists ?? "unbegrenzt viele"} Wunschlisten`,
-  event: () => "pro Turnier",
-  verein: () => "pro Monat, jährlich",
-};
-
-function ChangePlan({ to, onClose }: { to: Plan; onClose: () => void }) {
-  const { org, toast } = usePortal();
-  const act = useOrgAction();
-  const [payBy, setPayBy] = useState<"card" | "invoice">("card");
-  const [tid, setTid] = useState("");
-  const [busy, setBusy] = useState(false);
-  const { data: tours } = useOrg<PortalApi["GET /portal/orgs/:id/tournaments"]["R"]>(to.id === "event" ? `/portal/orgs/${org.id}/tournaments` : null);
-  const candidates = (tours?.tournaments ?? []).filter((t) => t.state !== "done" && t.plan === "gratis");
-  const go = async () => {
-    setBusy(true);
-    try {
-      const { url } =
-        to.id === "gratis"
-          ? await act<{ url: string }>(`/portal/orgs/${org.id}/billing-portal`)
-          : await act<{ url: string }>(`/portal/orgs/${org.id}/checkout`, { plan: to.id, ...(to.id === "event" ? { tournamentId: tid } : { payBy }) });
-      window.location.assign(url);
-    } catch (e) {
-      toast((e as OrgError).message, "err");
-      setBusy(false);
-    }
-  };
+/** PL-Plan-Gratis: usage against the limits, what's missing, both ways up. */
+function GratisView({ b }: { b: Billing }) {
+  const { org } = usePortal();
+  const plan = b.plans.find((p) => p.id === "gratis") ?? b.plans[0];
+  const l = plan.limits;
   return (
-    <Dialog
-      title={to.id === "gratis" ? "Zu Gratis wechseln" : `Plan ${to.name}`}
-      onClose={onClose}
-      actions={
-        <>
-          <button className="btn btn-ghost btn-s" type="button" onClick={onClose}>
-            Abbrechen
-          </button>
-          <button className="btn btn-ink btn-s" type="button" disabled={busy || (to.id === "event" && !tid)} onClick={go}>
-            {to.id === "gratis" ? "Weiter zu Stripe" : "Weiter zur Zahlung"}
-            <Ic name="arrow-ur" small />
-          </button>
-        </>
-      }
-    >
-      {to.id === "gratis" ? (
-        <p className="box-s">
-          Läuft bis zum Ende der bezahlten Zeit, danach gilt Gratis. Kündigen bei Stripe.
-        </p>
-      ) : to.id === "event" ? (
-        <>
-          <p className="box-s">{chfShort(to.price)} pro Turnier, bis {to.limits.maxTeams} Teams. Karte oder TWINT.</p>
-          <div className="f">
-            <label className="f-l" htmlFor="cp-t">
-              Für welches Turnier?
-            </label>
-            <select id="cp-t" className="sel" value={tid} onChange={(e) => setTid(e.target.value)}>
-              <option value="">Turnier wählen</option>
-              {candidates.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-            {tours && !candidates.length ? <span className="f-h">Erstell zuerst ein Turnier.</span> : null}
+    <>
+      <div className="g2">
+        <section className="plan free" aria-labelledby="pf-h">
+          <p className="plan-l">Dein Plan</p>
+          <h2 id="pf-h" className="plan-n">
+            {plan.name}
+            <small>{chfShort(plan.price)}, kein Abo</small>
+          </h2>
+          <div className="use">
+            <Meter label="Teams im grössten Turnier" used={b.usage.largestTournament} max={l.maxTeams} />
+            <Meter label="Turniere gleichzeitig" used={b.usage.running} max={l.maxRunning} />
+            <Meter label="Organisatoren" used={b.usage.organisers} max={l.maxOrganisers} />
+            {org.services.includes("wishlist") ? <Meter label="Wishlist-Listen" used={b.usage.wishlists} max={plan.wishlist.maxLists} /> : null}
           </div>
-        </>
-      ) : (
-        <>
-          <p className="box-s">
-            {planPrice(to)}, jährlich ({chf(to.price * 12)}). Unbegrenzt Turniere und Wunschlisten.
-          </p>
-          <fieldset className="f" style={{ border: 0, padding: 0, margin: 0 }}>
-            <legend className="f-l" style={{ marginBottom: 8 }}>
-              Bezahlen mit
-            </legend>
-            <div className="pills">
-              <button className="pill" type="button" aria-pressed={payBy === "card"} onClick={() => setPayBy("card")}>
-                Karte
-              </button>
-              <button className="pill" type="button" aria-pressed={payBy === "invoice"} onClick={() => setPayBy("invoice")}>
-                Rechnung per E-Mail
-              </button>
-            </div>
-            <span className="f-h">{payBy === "invoice" ? "PDF, zahlbar in 30 Tagen." : "Abo per Karte."}</span>
-          </fieldset>
-        </>
-      )}
-    </Dialog>
+        </section>
+        <section className="box" aria-labelledby="mi-h">
+          <div className="box-h">
+            <h2 id="mi-h" className="box-t">
+              {B.missingH}
+            </h2>
+          </div>
+          <ul className="miss">
+            {B.missing.map((x) => (
+              <li key={x}>
+                <Ic name="lock" small />
+                {x}
+              </li>
+            ))}
+          </ul>
+        </section>
+      </div>
+      <section className="sec-l" aria-labelledby="up-h2">
+        <h2 id="up-h2" className="b-h2">
+          {B.upH}
+        </h2>
+        <div className="ups">
+          <PassCard pass={b.pass} href={kasseHref("pass", { org: org.id })} />
+          <PlusCard plus={plusOf(b)} href={kasseHref("plus", { org: org.id })} />
+        </div>
+        <FiveLine />
+      </section>
+    </>
   );
 }
 
-function Billing() {
+/** PL-Plan-Pass: Gratis with passes, each with its tournament, and what stays after it. */
+function PassView({ b }: { b: Billing }) {
+  const { org } = usePortal();
+  const t = now();
+  const year = new Date(t).getFullYear();
+  const thisYear = b.passes.filter((p) => new Date(p.boughtAt).getFullYear() === year);
+  const active = b.passes.filter((p) => p.state === "active").length;
+  const { data: tours } = useOrg<PortalApi["GET /portal/orgs/:id/tournaments"]["R"]>(`/portal/orgs/${org.id}/tournaments`);
+  const startsAt = (id: string) => tours?.tournaments.find((x) => x.id === id)?.startsAt ?? null;
+  return (
+    <div className="g3">
+      <div className="stack">
+        <section className="box" aria-labelledby="ps-h">
+          <div className="box-h">
+            <h2 id="ps-h" className="box-t">
+              Turnier-Pässe
+            </h2>
+            <Link className="btn btn-line btn-s" href={kasseHref("pass", { org: org.id })}>
+              <Ic name="plus" small />
+              Weiteren Pass kaufen
+            </Link>
+          </div>
+          <div className="passes">
+            {b.passes.map((p) => (
+              <div className={`pass${p.state === "done" ? " spent" : " act"}`} key={p.id}>
+                <span className="pass-i" aria-hidden="true">
+                  <Ic name="trophy" />
+                </span>
+                <div className="pass-m">
+                  <p>
+                    <b>{p.tournamentName}</b>
+                    {p.state === "active" ? (
+                      <Chip chip="ok" dot="ok">
+                        Aktiv
+                      </Chip>
+                    ) : (
+                      <Chip dot="">Abgeschlossen</Chip>
+                    )}
+                  </p>
+                  <span className="s">
+                    {[startsAt(p.tournamentId) ? shortDay(startsAt(p.tournamentId) as number) : "", `gekauft am ${dateNarrow(p.boughtAt)}`, chf(p.amount)].filter(Boolean).join(" · ")}
+                  </span>
+                  {p.state === "active" ? (
+                    <div className="pass-u">
+                      <span className="meter" role="meter" aria-valuemin={0} aria-valuemax={b.pass.limits.maxTeams} aria-valuenow={p.teams} aria-label={`${p.teams} von ${b.pass.limits.maxTeams} Teams`}>
+                        <i style={{ width: `${Math.min(100, Math.round((p.teams / b.pass.limits.maxTeams) * 100))}%` }} />
+                      </span>
+                      <span className="s">
+                        {p.teams} von {b.pass.limits.maxTeams} Teams
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="kept">
+                      <b>Was nach dem Turnier bleibt</b>
+                      <p>Alles, was das Turnier hatte: Teams, Resultate, Bracket und Export. Es bleibt für immer sichtbar. Ändern kannst du es nur noch im Rahmen von Gratis.</p>
+                    </div>
+                  )}
+                </div>
+                {p.receiptUrl ? (
+                  <a className="alink" href={p.receiptUrl}>
+                    <Ic name="download" small />
+                    Beleg<span className="sr"> für {p.tournamentName}</span>
+                  </a>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+      <div className="stack">
+        <section className="plan free" aria-labelledby="pp-h">
+          <p className="plan-l">Dein Plan</p>
+          <h2 id="pp-h" className="plan-n">
+            Gratis<small>{active ? `mit ${active} aktiven ${active === 1 ? "Pass" : "Pässen"}` : "CHF 0, kein Abo"}</small>
+          </h2>
+          <div className="plan-f">
+            <span>
+              {year}: {thisYear.length} {thisYear.length === 1 ? "Pass" : "Pässe"}, {chf(thisYear.reduce((n, p) => n + p.amount, 0))}
+            </span>
+          </div>
+        </section>
+        <PlusCard plus={plusOf(b)} href={kasseHref("plus", { org: org.id })} short />
+      </div>
+    </div>
+  );
+}
+
+/** PL-Overdue: calm, what keeps running, what pauses, how to pay. */
+function Overdue({ b }: { b: Billing }) {
   const { org, toast } = usePortal();
   const act = useOrgAction();
-  const [to, setTo] = useState<Plan | null>(null);
-  const { data, error, reload } = useOrg<Billing>(`/portal/orgs/${org.id}/billing`, 60_000);
-  usePageBusy(!data && !error);
-  const t = now();
-
-  if (error && !data) return <ErrorCard title="Die Abrechnung hat nicht geladen" error={error} onRetry={reload} />;
-  if (!data) {
-    return (
-      <Loading label="Abrechnung wird geladen">
-        <div className="g3">
-          <div className="stack">
-            <Sk h={220} />
-            <Sk h={200} />
-          </div>
-          <div className="stack">
-            <Sk h={150} r={22} />
-            <Sk h={120} />
-            <Sk h={150} />
-          </div>
+  const inv = b.invoices.find((i) => i.status === "open" && i.overdueDays > 0) ?? b.invoices.find((i) => i.status === "open");
+  if (!inv) return null;
+  const until = b.graceUntil ? dayMonthLong(b.graceUntil) : null;
+  const pay = async () => {
+    try {
+      const { url } = await act<{ url: string }>(`/portal/orgs/${org.id}/invoices/${inv.id}/pay`);
+      window.location.assign(url);
+    } catch (e) {
+      toast((e as OrgError).message, "err");
+    }
+  };
+  return (
+    <section className="due" aria-labelledby="due-h">
+      <div className="due-t">
+        <h2 id="due-h">{B.overdue.h}</h2>
+        <p>{until ? `Plus läuft bis ${until} normal weiter. Danach gelten für neue Turniere die Grenzen von Gratis, bis die Rechnung bezahlt ist.` : "Plus läuft normal weiter, bis die Rechnung bezahlt ist."}</p>
+      </div>
+      <div className="due-c">
+        <h3>{B.overdue.keepH}</h3>
+        <ul>
+          {B.overdue.keep.map((x) => (
+            <li key={x}>
+              <Ic name="check" small />
+              {x}
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="due-c">
+        <h3>{until ? `Ab ${until} pausiert` : "Danach pausiert"}</h3>
+        <ul>
+          {B.overdue.stop.map((x) => (
+            <li key={x}>
+              <Ic name="clock" small />
+              {x}
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="due-p">
+        <h3>{B.overdue.payH}</h3>
+        <div className="due-pa">
+          <button className="btn btn-ink btn-s" type="button" onClick={pay}>
+            <Ic name="card" small />
+            {B.overdue.card}
+          </button>
+          {inv.pdfUrl ? (
+            <a className="btn btn-line btn-s" href={inv.pdfUrl}>
+              <Ic name="download" small />
+              {B.overdue.qr}
+            </a>
+          ) : null}
         </div>
-      </Loading>
-    );
-  }
+        <p>{B.overdue.paid}</p>
+        <Link className="alink" href="/support/neu?topic=billing">
+          {B.overdue.time}
+          <Ic name="arrow-r" small />
+        </Link>
+      </div>
+    </section>
+  );
+}
 
-  const current = data.plans.find((p) => p.id === data.current) ?? org.plan;
-  const pm = data.paymentMethod;
+/** PL-Plan-Plus, with the overdue panel, the card note or the cancel note on top when they apply. */
+function PlusView({ b }: { b: Billing }) {
+  const { org, toast } = usePortal();
+  const act = useOrgAction();
+  const plan = b.plans.find((p) => p.id === b.current) ?? plusOf(b);
+  const pm = b.paymentMethod;
+  const next = nextInvoice(b);
+  const cardSoon = b.state === "card_expires" && pm?.kind === "card";
   const stripe = async () => {
     try {
       const { url } = await act<{ url: string }>(`/portal/orgs/${org.id}/billing-portal`);
@@ -148,170 +241,214 @@ function Billing() {
       toast((e as OrgError).message, "err");
     }
   };
-
+  const payBy = async (to: "invoice" | "card") => {
+    try {
+      await act(`/portal/orgs/${org.id}/pay-by`, { payBy: to });
+      toast(to === "invoice" ? "Die nächste Rechnung kommt per E-Mail mit QR-Rechnung." : "Die nächste Rechnung wird der Karte belastet.");
+    } catch (e) {
+      toast((e as OrgError).message, "err");
+    }
+  };
+  const stay = async () => {
+    try {
+      await act(`/portal/orgs/${org.id}/cancel/undo`);
+      toast("Plus bleibt. Es verlängert sich wie bisher.");
+    } catch (e) {
+      toast((e as OrgError).message, "err");
+    }
+  };
   return (
-    <div className="g3">
-      <div className="stack">
-        <section className="box" aria-labelledby="iv-h">
-          <div className="box-h">
-            <h2 id="iv-h" className="box-t">
-              {PORTAL.billing.invH}
-            </h2>
-            <span className="box-s">als PDF</span>
-          </div>
-          {data.invoices.length ? (
-            <Table
-              label={PORTAL.billing.invH}
-              cols="100px minmax(0,1fr) 100px 150px 120px"
-              colsS="minmax(0,1fr) auto"
-              head={[{ h: "Nummer" }, { h: "Leistung", hide: true }, { h: "Betrag", r: true, hide: true }, { h: "Status" }, { h: "", hide: true }]}
-            >
-              {data.invoices.map((i) => {
-                const st = invoiceState(i);
-                return (
-                  <tr className="dt-r" key={i.id}>
-                    <Td>
-                      <b className="mono-t">{i.number}</b>
-                      <span className="box-s" style={{ display: "block" }}>
-                        {date(i.createdAt)}
-                      </span>
-                    </Td>
-                    <Td hide>{i.description}</Td>
-                    <Td r hide>
-                      <b>{chf(i.amount)}</b>
-                    </Td>
-                    <Td>
-                      <Chip chip={st.chip} dot={st.chip}>
-                        {st.label}
-                      </Chip>
-                      {i.dueAt ? (
-                        <span className="box-s" style={{ display: "block", marginTop: 4 }}>
-                          fällig {date(i.dueAt)}
-                        </span>
-                      ) : null}
-                    </Td>
-                    <Td r hide>
-                      {st.pay && i.payUrl ? (
-                        <a className="btn btn-ink btn-s" href={i.payUrl}>
-                          Bezahlen
-                        </a>
-                      ) : i.pdfUrl ? (
-                        <a className="alink" href={i.pdfUrl} download>
-                          <Ic name="download" small />
-                          PDF<span className="sr"> von Rechnung {i.number}</span>
-                        </a>
-                      ) : null}
-                    </Td>
-                  </tr>
-                );
-              })}
-            </Table>
-          ) : (
-            <p className="box-s">Noch keine Rechnungen.</p>
-          )}
-        </section>
-        <section className="box" aria-labelledby="pw-h">
-          <div className="box-h">
-            <h2 id="pw-h" className="box-t">
-              {PORTAL.billing.plansH}
-            </h2>
-            <span className="box-s">Gilt ab der nächsten Rechnung</span>
-          </div>
-          <div className="plan3">
-            {data.plans.map((p) => {
-              const cur = p.id === data.current;
-              return (
-                <button key={p.id} className={`p3${cur ? " cur" : ""}`} type="button" aria-pressed={cur} disabled={cur} onClick={() => setTo(p)}>
-                  <b>
-                    {p.name}
-                    {cur ? (
-                      <span className="chip" style={{ height: 20 }}>
-                        Aktuell
-                      </span>
-                    ) : null}
-                  </b>
-                  <span className="pp">{chfShort(p.price)}</span>
-                  <span className="s">{PLAN_SUB[p.id](p)}</span>
-                </button>
-              );
-            })}
-          </div>
-          <p className="box-s" style={{ marginTop: 12 }}>
-            Gilt für alle Dienste.{data.plans.some((p) => p.placeholder) ? " Preise sind Platzhalter." : ""}
-          </p>
-        </section>
-      </div>
-      <div className="stack">
-        <section className="plan" aria-labelledby="bp-h">
-          <p className="plan-l">{PORTAL.overview.plan}</p>
-          <h2 id="bp-h" className="plan-n">
-            {current.name}
-            <small>
-              {planPrice(current)}
-              {current.period === "month_yearly" ? `, jährlich, ${chfShort(current.price * 12)}` : ""}
-            </small>
-          </h2>
-          <div className="plan-f">
-            <span>{data.renewsAt ? `Nächste Rechnung am ${longDate(data.renewsAt)}` : "Kein Abo, keine Rechnung"}</span>
-          </div>
-        </section>
-        <section className="box" aria-labelledby="pm-h">
-          <div className="box-h">
-            <h2 id="pm-h" className="box-t">
-              {PORTAL.billing.payH}
-            </h2>
-            <span className="box-s">{PORTAL.billing.payNote}</span>
-          </div>
-          {pm ? (
-            <div className="paym">
-              <span className="cardi" aria-hidden="true">{pm.kind === "card" ? pm.brand.toUpperCase().slice(0, 4) : pm.kind === "twint" ? "TWINT" : <Ic name="mail" small />}</span>
-              <div className="grow">
-                <b>{pm.kind === "card" ? `${pm.brand.charAt(0).toUpperCase()}${pm.brand.slice(1)} •••• ${pm.last4}` : pm.kind === "twint" ? "TWINT" : "Rechnung per E-Mail"}</b>
-                {pm.kind === "card" ? (
-                  <span className="s">
-                    läuft ab {String(pm.expMonth).padStart(2, "0")}/{String(pm.expYear).slice(-2)}
-                    {new Date(pm.expYear, pm.expMonth).getTime() < t ? " (abgelaufen)" : ""}
-                  </span>
-                ) : null}
-              </div>
-              <button className="btn btn-line btn-s" type="button" onClick={stripe}>
-                {PORTAL.billing.payCta}
-                <Ic name="arrow-ur" small />
-              </button>
+    <>
+      {b.state === "overdue" ? <Overdue b={b} /> : null}
+      {cardSoon && b.renewsAt ? (
+        <div className="alert info b-note" role="status">
+          <Ic name="card" />
+          <span className="grow">
+            <b>
+              Deine Karte läuft im {MONTH[pm.expMonth - 1]} ab, Plus verlängert sich am {dayMonthLong(b.renewsAt)}.
+            </b>
+          </span>
+          <button className="btn btn-ink btn-s" type="button" onClick={stripe}>
+            {B.cardExp.cta}
+          </button>
+          <button className="btn btn-ghost btn-s" type="button" onClick={() => payBy("invoice")}>
+            {B.cardExp.alt}
+          </button>
+        </div>
+      ) : null}
+      {b.state === "canceling" && b.cancelAt ? (
+        <div className="alert info b-note" role="status">
+          <Ic name="info" />
+          <span className="grow">
+            <b>Ab {longDate(b.cancelAt)} seid ihr auf Gratis.</b> Bis dahin läuft Plus wie gewohnt.
+          </span>
+          <button className="btn btn-ink btn-s" type="button" onClick={stay}>
+            {B.cancel.keepPlus}
+          </button>
+        </div>
+      ) : null}
+      <div className="g3">
+        <div className="stack">
+          <section className="box" aria-labelledby="ab-h">
+            <div className="box-h">
+              <h2 id="ab-h" className="box-t">
+                {B.lines.h}
+              </h2>
             </div>
-          ) : (
-            <p className="box-s">Noch keins hinterlegt.</p>
-          )}
-        </section>
-        <section className="box" aria-labelledby="ad-h">
-          <div className="box-h">
-            <h2 id="ad-h" className="box-t">
-              {PORTAL.billing.addrH}
+            <Lines b={b} />
+            {next || b.reminderAt ? (
+              <div className="ln-f">
+                <span>{next ?? (b.cancelAt ? `Keine weitere Rechnung, Gratis ab ${longDate(b.cancelAt)}` : "")}</span>
+                {b.reminderAt && !b.cancelAt ? <span className="box-s">Erinnerung am {longDate(b.reminderAt)}</span> : null}
+              </div>
+            ) : null}
+          </section>
+          <section className="box" aria-labelledby="li-h">
+            <div className="box-h">
+              <h2 id="li-h" className="box-t">
+                {B.lastInv}
+              </h2>
+              <Link className="alink" href="/abrechnung/rechnungen">
+                {B.allInv}
+                <Ic name="arrow-r" small />
+              </Link>
+            </div>
+            <div>
+              {b.invoices.length ? b.invoices.slice(0, 2).map((i) => <InvoiceRow i={i} key={i.id} />) : <p className="box-s">Noch keine Rechnungen.</p>}
+            </div>
+          </section>
+          <section className="box" aria-labelledby="us2-h">
+            <div className="box-h">
+              <h2 id="us2-h" className="box-t">
+                Nutzung
+              </h2>
+            </div>
+            <div className="use use3">
+              <UseCell label="Grösstes Turnier" sub={`von ${plan.limits.maxTeams} Teams`} v={b.usage.largestTournament} max={plan.limits.maxTeams} />
+              <UseCell label="Gleichzeitig" sub={plan.limits.maxRunning === null ? "Turniere, unbegrenzt" : `von ${plan.limits.maxRunning}`} v={b.usage.running} max={plan.limits.maxRunning} />
+              <UseCell label="Organisatoren" sub={`von ${plan.limits.maxOrganisers}`} v={b.usage.organisers} max={plan.limits.maxOrganisers} />
+            </div>
+          </section>
+        </div>
+        <div className="stack">
+          <section className="plan" aria-labelledby="pl-h">
+            <p className="plan-l">Dein Plan</p>
+            <h2 id="pl-h" className="plan-n">
+              {plan.name}
+              <small>{planPrice(plan)}</small>
             </h2>
-            <Link className="alink" href="/einstellungen">
-              Ändern
-            </Link>
-          </div>
-          <address className="addr">
-            {data.contact.address.map((a, i) => (
-              <span key={i} style={{ display: "block" }}>
-                {a}
-              </span>
-            ))}
-          </address>
-        </section>
+            <div className="plan-f">
+              <span>{b.cancelAt ? `Plus bis ${longDate(b.cancelAt - 86_400_000)}` : b.renewsAt ? `Verlängert sich am ${longDate(b.renewsAt)}` : ""}</span>
+            </div>
+          </section>
+          <section className={`box${cardSoon ? " hl" : ""}`} aria-labelledby="pm2-h">
+            <div className="box-h">
+              <h2 id="pm2-h" className="box-t">
+                {B.payH}
+              </h2>
+              <span className="box-s">{B.payNote}</span>
+            </div>
+            {b.payBy === "invoice" ? (
+              <div className="paym">
+                <span className="cardi" aria-hidden="true">
+                  <Ic name="mail" small />
+                </span>
+                <div className="grow">
+                  <b>Rechnung per E-Mail</b>
+                  <span className="s">mit QR-Rechnung, zahlbar in 30 Tagen</span>
+                </div>
+              </div>
+            ) : pm ? (
+              <div className="paym">
+                <span className="cardi" aria-hidden="true">
+                  {pm.kind === "card" ? pm.brand.toUpperCase().slice(0, 4) : "TWINT"}
+                </span>
+                <div className="grow">
+                  <b>{pm.kind === "card" ? `${pm.brand.charAt(0).toUpperCase()}${pm.brand.slice(1)} •••• ${pm.last4}` : "TWINT"}</b>
+                  {pm.kind === "card" ? (
+                    <span className={`s${cardSoon ? " warn-t" : ""}`}>
+                      {cardSoon ? `Läuft ab ${String(pm.expMonth).padStart(2, "0")}/${String(pm.expYear).slice(-2)}, vor der Verlängerung.` : `läuft ab ${String(pm.expMonth).padStart(2, "0")}/${String(pm.expYear).slice(-2)}`}
+                    </span>
+                  ) : null}
+                </div>
+                <button className="btn btn-line btn-s" type="button" onClick={stripe}>
+                  {B.payCta}
+                  <Ic name="arrow-ur" small />
+                </button>
+              </div>
+            ) : (
+              <p className="box-s">Noch keins hinterlegt.</p>
+            )}
+            <button className="alink" type="button" style={{ marginTop: 8 }} onClick={() => payBy(b.payBy === "invoice" ? "card" : "invoice")}>
+              {b.payBy === "invoice" ? "Mit Karte zahlen" : B.payAlt}
+              <Ic name="arrow-r" small />
+            </button>
+          </section>
+          <section className="box" aria-labelledby="ct-h">
+            <div className="box-h">
+              <h2 id="ct-h" className="box-t">
+                {B.contactH}
+              </h2>
+              <Link className="alink" href="/einstellungen">
+                {B.contactCta}
+              </Link>
+            </div>
+            <p className="addr">
+              <b style={{ display: "block" }}>{b.contact.email}</b>
+              {b.contact.address.map((a, i) => (
+                <span key={i} style={{ display: "block" }}>
+                  {a}
+                </span>
+              ))}
+            </p>
+          </section>
+          {b.state !== "canceling" ? (
+            <p className="out">
+              <Link className="ul" href="/abrechnung/wechseln">
+                {B.out}
+              </Link>
+            </p>
+          ) : null}
+        </div>
       </div>
-      {to ? <ChangePlan to={to} onClose={() => setTo(null)} /> : null}
+    </>
+  );
+}
+
+function UseCell({ label, sub, v, max }: { label: string; sub: string; v: number; max: number | null }) {
+  const pct = max ? Math.min(100, Math.round((v / max) * 100)) : 0;
+  return (
+    <div className="use-r">
+      <div className="use-h">
+        <b>{label}</b>
+        <span>{sub}</span>
+      </div>
+      <span className="use-v">{v}</span>
+      {max !== null ? (
+        <span className={`meter${pct >= 100 ? " full" : ""}`} role="meter" aria-valuemin={0} aria-valuemax={max} aria-valuenow={v} aria-label={`${label}: ${v} von ${max}`}>
+          <i style={{ width: `${pct}%` }} />
+        </span>
+      ) : null}
     </div>
   );
+}
+
+function Plan() {
+  const { org } = usePortal();
+  const { data, error, reload } = useOrg<Billing>(`/portal/orgs/${org.id}/billing`, 60_000);
+  usePageBusy(!data && !error);
+  if (error && !data) return <BillingError onRetry={reload} requestId={error.requestId} />;
+  if (!data) return <BillingLoading />;
+  if (data.current === "plus") return <PlusView b={data} />;
+  return data.passes.length ? <PassView b={data} /> : <GratisView b={data} />;
 }
 
 export default function BillingPage() {
   return (
     <>
-      <PageHead title={PORTAL.billing.h} />
+      <BillingHead on="plan" />
       <OwnerOnly>
-        <Billing />
+        <Plan />
       </OwnerOnly>
     </>
   );
