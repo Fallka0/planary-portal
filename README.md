@@ -21,6 +21,8 @@ Next.js 16 (App Router), React 19, plain CSS from the handoff boards (`src/app/p
 | `/neu` | Create an organisation. |
 | `/einladung/[token]` | Accept an invitation from the e-mail. |
 
+Personal accounts (`kind: 'personal'`, someone paying for Vault on their own) only get Abrechnung and Support; Abrechnung shows the Vault subscription, invoices, payment method and billing e-mail. Organisations that also pay for Vault see a Vault card under their plan. Plan changes for Vault happen in Vault (`vault.planary.ch/plans`); `/kasse/fertig` sends people back there.
+
 The overdue banner (owners) and the incident banner (organisers with live tournaments, from the Console's "show to organisers") sit under the tabs on every page.
 
 ## Data

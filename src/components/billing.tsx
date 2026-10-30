@@ -103,7 +103,7 @@ export function Lines({ b, chips = true }: { b: Billing; chips?: boolean }) {
           </span>
           <span className="ln-a">
             <b>{chf(l.amount)}</b>
-            <span>{l.period === "year" ? "pro Jahr" : "einmalig"}</span>
+            <span>{l.period === "year" ? "pro Jahr" : l.period === "month" ? "pro Monat" : "einmalig"}</span>
           </span>
         </div>
       ))}

@@ -6,6 +6,7 @@ import { OwnerOnly, usePageBusy, usePortal } from "@/components/Shell";
 import { planPrice } from "@/components/status";
 import { Chip, Ic } from "@/components/ui";
 import { PORTAL_BILLING as B } from "@/design/billing-copy";
+import { VAULT_URL } from "@/lib/auth";
 import { kasseHref, nextInvoice } from "@/lib/billing";
 import { chf, chfShort, dateNarrow, longDate, shortDay } from "@/lib/fmt";
 import { now, type OrgError, useOrg, useOrgAction } from "@/lib/org";
@@ -415,6 +416,144 @@ function PlusView({ b }: { b: Billing }) {
   );
 }
 
+/** Vault's own subscription (ADR 0003): plan, price, what happens next. Changes are made in Vault. */
+function VaultCard({ b }: { b: Billing }) {
+  const v = b.vault;
+  const plan = v.plans.find((p) => p.id === v.current) ?? v.plans[0];
+  const price =
+    v.current === "free" ? "CHF 0" : v.period === "year" ? `${chf(plan.yearly)} pro Jahr` : v.period === "month" ? `${chf(plan.monthly)} pro Monat` : "von Planary freigeschaltet";
+  const pending = v.pending ? v.plans.find((p) => p.id === v.pending?.plan) : null;
+  const status = v.cancelAt
+    ? `Ab ${longDate(v.cancelAt)} gilt Vault Free. Es wird nichts gelöscht.`
+    : pending && v.renewsAt
+      ? `Wechselt am ${longDate(v.renewsAt)} zu ${pending.name}, ${v.pending?.period === "year" ? "jährlich" : "monatlich"}.`
+      : v.renewsAt
+        ? `Verlängert sich am ${longDate(v.renewsAt)}.`
+        : `${plan.quotaGb >= 1024 ? `${plan.quotaGb / 1024} TB` : `${plan.quotaGb} GB`}, Ende-zu-Ende verschlüsselt.`;
+  return (
+    <section className="plan" aria-labelledby="va-h">
+      <p className="plan-l">Vault</p>
+      <h2 id="va-h" className="plan-n">
+        {plan.name}
+        <small>{price}</small>
+      </h2>
+      <div className="plan-f">
+        <span>{status}</span>
+      </div>
+      <a className="alink" href={`${VAULT_URL}/plans`}>
+        {v.current === "free" ? "Pläne ansehen" : "In Vault verwalten"}
+        <Ic name="arrow-ur" small />
+      </a>
+    </section>
+  );
+}
+
+/** A personal account (someone who pays for Vault on their own): Vault, invoices, payment, contact. */
+function PersonalView({ b }: { b: Billing }) {
+  const { org, toast } = usePortal();
+  const act = useOrgAction();
+  const pm = b.paymentMethod;
+  const open = b.invoices.find((i) => i.status === "open");
+  const stripe = async () => {
+    try {
+      const { url } = await act<{ url: string }>(`/portal/orgs/${org.id}/billing-portal`);
+      window.location.assign(url);
+    } catch (e) {
+      toast((e as OrgError).message, "err");
+    }
+  };
+  const pay = async () => {
+    if (!open) return;
+    try {
+      const { url } = await act<{ url: string }>(`/portal/orgs/${org.id}/invoices/${open.id}/pay`);
+      window.location.assign(url);
+    } catch (e) {
+      toast((e as OrgError).message, "err");
+    }
+  };
+  return (
+    <>
+      {open && open.overdueDays > 0 ? (
+        <div className="alert info b-note" role="status">
+          <Ic name="info" />
+          <span className="grow">
+            <b>Eine Rechnung ist seit {open.overdueDays} {open.overdueDays === 1 ? "Tag" : "Tagen"} offen.</b> Vault läuft normal weiter. Bleibt sie länger offen, gilt Vault Free, bis sie bezahlt ist. Es wird nichts gelöscht.
+          </span>
+          <button className="btn btn-ink btn-s" type="button" onClick={pay}>
+            Jetzt bezahlen
+          </button>
+        </div>
+      ) : null}
+      <div className="g3">
+        <div className="stack">
+          {b.lines.length ? (
+            <section className="box" aria-labelledby="pab-h">
+              <div className="box-h">
+                <h2 id="pab-h" className="box-t">
+                  {B.lines.h}
+                </h2>
+              </div>
+              {/* Nothing here is an add-on to anything: no kind chips. */}
+              <Lines b={b} chips={false} />
+            </section>
+          ) : null}
+          <section className="box" aria-labelledby="pli-h">
+            <div className="box-h">
+              <h2 id="pli-h" className="box-t">
+                {B.lastInv}
+              </h2>
+              <Link className="alink" href="/abrechnung/rechnungen">
+                {B.allInv}
+                <Ic name="arrow-r" small />
+              </Link>
+            </div>
+            <div>{b.invoices.length ? b.invoices.slice(0, 3).map((i) => <InvoiceRow i={i} key={i.id} />) : <p className="box-s">Noch keine Rechnungen.</p>}</div>
+          </section>
+        </div>
+        <div className="stack">
+          <VaultCard b={b} />
+          <section className="box" aria-labelledby="ppm-h">
+            <div className="box-h">
+              <h2 id="ppm-h" className="box-t">
+                {B.payH}
+              </h2>
+            </div>
+            {b.vault.payBy === "invoice" ? (
+              <p className="box-s">Rechnung per E-Mail mit QR-Rechnung, zahlbar in 30 Tagen.</p>
+            ) : pm && pm.kind === "card" ? (
+              <div className="paym">
+                <span className="cardi" aria-hidden="true">
+                  {pm.brand.toUpperCase().slice(0, 4)}
+                </span>
+                <div className="grow">
+                  <b>{`${pm.brand.charAt(0).toUpperCase()}${pm.brand.slice(1)} •••• ${pm.last4}`}</b>
+                  <span className="s">läuft ab {String(pm.expMonth).padStart(2, "0")}/{String(pm.expYear).slice(-2)}</span>
+                </div>
+                <button className="btn btn-line btn-s" type="button" onClick={stripe}>
+                  {B.payCta}
+                  <Ic name="arrow-ur" small />
+                </button>
+              </div>
+            ) : (
+              <p className="box-s">Noch keins hinterlegt.</p>
+            )}
+          </section>
+          <section className="box" aria-labelledby="pct-h">
+            <div className="box-h">
+              <h2 id="pct-h" className="box-t">
+                {B.contactH}
+              </h2>
+            </div>
+            <p className="addr">
+              <b style={{ display: "block" }}>{b.contact.email}</b>
+            </p>
+          </section>
+        </div>
+      </div>
+    </>
+  );
+}
+
 function UseCell({ label, sub, v, max }: { label: string; sub: string; v: number; max: number | null }) {
   const pct = max ? Math.min(100, Math.round((v / max) * 100)) : 0;
   return (
@@ -439,8 +578,19 @@ function Plan() {
   usePageBusy(!data && !error);
   if (error && !data) return <BillingError onRetry={reload} requestId={error.requestId} />;
   if (!data) return <BillingLoading />;
-  if (data.current === "plus") return <PlusView b={data} />;
-  return data.passes.length ? <PassView b={data} /> : <GratisView b={data} />;
+  if (org.kind === "personal") return <PersonalView b={data} />;
+  const view = data.current === "plus" ? <PlusView b={data} /> : data.passes.length ? <PassView b={data} /> : <GratisView b={data} />;
+  // An organisation that also pays for Vault sees that subscription below its plan.
+  return data.vault.current === "free" ? (
+    view
+  ) : (
+    <>
+      {view}
+      <div className="g2 sec-l">
+        <VaultCard b={data} />
+      </div>
+    </>
+  );
 }
 
 export default function BillingPage() {

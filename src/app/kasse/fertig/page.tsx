@@ -6,11 +6,18 @@ import { Suspense, useEffect, useState } from "react";
 import { BillingError } from "@/components/billing";
 import { Ic } from "@/components/ui";
 import { PORTAL_BILLING as B } from "@/design/billing-copy";
+import { VAULT_URL } from "@/lib/auth";
 import { CHECKOUT_KEY, safeReturn } from "@/lib/billing";
 import { setCurrentOrg } from "@/lib/current-org";
 import { chf } from "@/lib/fmt";
 import { useOrg } from "@/lib/org";
 import type { CheckoutStatus, PortalOrg } from "@/lib/org-contract";
+
+const VAULT_NOW: Record<"plus" | "pro", string[]> = {
+  plus: ["200 GB, Dateien bis 20 GB", "Versionen ein Jahr lang", "Links bis ein Jahr, 100 Downloads", "Ende-zu-Ende verschlüsselt, wie bisher"],
+  pro: ["2 TB, Dateien bis 50 GB", "Alle Versionen bleiben", "Links ohne Grenzen", "Ende-zu-Ende verschlüsselt, wie bisher"],
+};
+const VAULT_PRICE = { plus: { month: 400, year: 4000 }, pro: { month: 1000, year: 10000 } };
 
 const PASS_NOW = ["Bis 128 Teams in diesem Turnier", "10 Organisatoren", "Warteliste, eigenes Logo, Export", "Gilt, bis das Turnier abgeschlossen ist. Danach bleibt alles sichtbar."];
 
@@ -36,6 +43,17 @@ function Done() {
     if (c?.state === "paid") setCurrentOrg(c.orgId);
     if (c?.state !== "failed") return;
     // Declined: back to the same checkout, which shows why and offers to try again.
+    // Vault is bought in Vault: a declined card goes back there.
+    if (c.product === "vault") {
+      const back = safeReturn(c.returnTo);
+      if (back) {
+        const u = new URL(back);
+        u.searchParams.set("checkout", "failed");
+        window.location.replace(u.toString());
+      }
+      else router.replace("/abrechnung");
+      return;
+    }
     let query = c.kind === "plan" ? "plan=plus" : `pass=tournament${c.tournamentId ? `&tournament=${c.tournamentId}` : ""}`;
     try {
       const saved = JSON.parse(sessionStorage.getItem(CHECKOUT_KEY) ?? "null") as { id: string; query: string } | null;
@@ -77,12 +95,59 @@ function Done() {
   }
 
   const plan = c.kind === "plan";
+  const vault = c.product === "vault" && c.productPlan ? c.productPlan : null;
   const back = safeReturn(c.returnTo);
   const org = orgQ.data;
+  const invoiceAmount = vault ? VAULT_PRICE[vault][c.period ?? "year"] : 14900;
   const paidLine =
     plan && c.payBy === "invoice"
-      ? `${org?.name ?? ""} · Rechnung über ${chf(14900)} an ${c.receiptEmail}, zahlbar in 30 Tagen`
+      ? `${org?.name ?? ""} · Rechnung über ${chf(invoiceAmount)} an ${c.receiptEmail}, zahlbar in 30 Tagen`
       : `${org?.name ?? ""} · ${chf(c.amount)} bezahlt · Beleg an ${c.receiptEmail}`;
+  if (vault) {
+    return (
+      <section className="done" aria-labelledby="dn-h">
+        <span className="done-i" aria-hidden="true">
+          <Ic name="check" />
+        </span>
+        <h1 id="dn-h" className="co-h">
+          {vault === "pro" ? "Vault Pro" : "Vault Plus"} ist aktiv.
+        </h1>
+        <p className="done-p">{paidLine.replace(/^ · /, "")}</p>
+        <div className="done-g">
+          <div className="box">
+            <h2 className="box-t">{B.done.nowH}</h2>
+            <ul className="miss" style={{ marginTop: 14 }}>
+              {VAULT_NOW[vault].map((x) => (
+                <li key={x}>
+                  <Ic name="check" small />
+                  {x}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="box">
+            <h2 className="box-t">{B.done.nextH}</h2>
+            <div className="done-a">
+              <a className="btn btn-ink" href={back ?? `${VAULT_URL}/plans?checkout=done`}>
+                <Ic name="arrow-l" small />
+                Zurück zu Vault
+              </a>
+              <Link className="btn btn-line" href="/abrechnung">
+                <Ic name="arrow-r" small />
+                Zur Abrechnung
+              </Link>
+              {c.receiptUrl ? (
+                <a className="alink" href={c.receiptUrl}>
+                  <Ic name="download" small />
+                  {B.done.pdf}
+                </a>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
   return (
     <section className="done" aria-labelledby="dn-h">
       <span className="done-i" aria-hidden="true">

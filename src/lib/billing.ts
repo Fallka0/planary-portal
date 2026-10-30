@@ -22,9 +22,13 @@ export function lineName(l: SubscriptionLine) {
   return l.name.split(" · ")[0];
 }
 
-/** The sub line under a line: the period for Plus, the tournament and purchase date for a pass. */
-export function lineSub(l: SubscriptionLine, b: Pick<Billing, "renewsAt" | "passes">) {
+/** The sub line under a line: the period for Plus and Vault, the tournament and purchase date for a pass. */
+export function lineSub(l: SubscriptionLine, b: Pick<Billing, "renewsAt" | "passes"> & Partial<Pick<Billing, "vault">>) {
   if (l.kind === "base" && b.renewsAt) return `${dateNarrow(b.renewsAt - 365 * DAY)} bis ${dateNarrow(b.renewsAt - DAY)}`;
+  if (l.kind === "addon" && l.name.startsWith("Vault") && b.vault) {
+    const v = b.vault;
+    return v.cancelAt ? `endet am ${dateNarrow(v.cancelAt)}` : v.renewsAt ? `${v.period === "year" ? "jährlich" : "monatlich"}, verlängert sich am ${dateNarrow(v.renewsAt)}` : "";
+  }
   const tournament = l.name.split(" · ")[1] ?? "";
   const pass = l.tournamentId ? b.passes.find((p) => p.tournamentId === l.tournamentId) : undefined;
   return [tournament, pass ? `gekauft am ${dateNarrow(pass.boughtAt)}` : ""].filter(Boolean).join(", ");
@@ -39,7 +43,8 @@ export const KIND_LABEL: Record<SubscriptionLine["kind"], { label: string; chip:
 /** "Nächste Rechnung am 3. Februar 2027: CHF 149.00" from the recurring lines. */
 export function nextInvoice(b: Billing) {
   if (!b.renewsAt || b.cancelAt) return null;
-  const amount = b.lines.filter((l) => l.period === "year").reduce((n, l) => n + l.amount, 0);
+  // Planary Plus renews on its own date; Vault has its own subscription and period.
+  const amount = b.lines.filter((l) => l.kind === "base").reduce((n, l) => n + l.amount, 0);
   return `Nächste Rechnung am ${longDate(b.renewsAt)}: ${chf(amount)}`;
 }
 

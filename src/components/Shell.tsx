@@ -149,7 +149,7 @@ function OrgSwitch({ org, orgs }: { org: PortalOrgSummary | PortalOrg | null; or
               <span className="logo">{o.initials}</span>
               <span className="grow">
                 {o.name}
-                <span className="s">{ROLE[o.role]}</span>
+                <span className="s">{o.kind === "personal" ? "Persönlich" : ROLE[o.role]}</span>
               </span>
               {o.id === org.id ? <Ic name="check" small /> : null}
             </button>
@@ -202,10 +202,12 @@ function Tabs({ org, role }: { org: PortalOrg | null; role: PortalOrg["role"] | 
   const owner = role !== "member";
   // A service's tab shows while the organisation uses it (and before that's known, Tournament's).
   const uses = (id: string) => (id === "tournaments" ? !org || org.services.includes("tournament") : id === "wishlists" ? !!org?.services.includes("wishlist") : true);
+  // A personal account only pays for products (Vault): its bills and Support, nothing to organise.
+  const personal = org?.kind === "personal";
   return (
     <nav className="ptabs" aria-label="Portal">
       {PORTAL.tabs
-        .filter((t) => (owner || (t.id !== "billing" && t.id !== "settings")) && (uses(t.id) || active === t.id))
+        .filter((t) => (personal ? t.id === "billing" || t.id === "support" : (owner || (t.id !== "billing" && t.id !== "settings")) && (uses(t.id) || active === t.id)))
         .map((t) => {
           const n = !org ? 0 : t.id === "support" ? org.counts.openRequests : t.id === "billing" ? org.counts.overdueInvoices : 0;
           return (
