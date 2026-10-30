@@ -4,6 +4,8 @@
 
 import type {
   Billing,
+  VaultBilling,
+  VaultPlan,
   BillingContact,
   BillingState,
   CheckoutBody,
@@ -35,10 +37,11 @@ const at = (iso: string) => Date.parse(iso);
 
 // default: Verein Gurten LAN on Plus. gratis / pass / new: Spielclub Thun on Gratis (with usage, with passes, brand new).
 // overdue, card (card expires before the renewal), canceling: Gurten in that billing state.
+// vault: Noa's personal account, paying for Vault Plus monthly (ADR 0003).
 // none: signed in without an organisation (solo checkout). payfail: the card payment comes back declined.
 // billing-error / billing-loading: only the billing call fails or hangs (PL-Plan-Error, PL-Plan-Loading).
-type State = "default" | "new" | "gratis" | "pass" | "overdue" | "card" | "canceling" | "incident" | "member" | "none" | "payfail" | "billing-error" | "billing-loading" | "error" | "loading";
-const STATES: State[] = ["new", "gratis", "pass", "overdue", "card", "canceling", "incident", "member", "none", "payfail", "billing-error", "billing-loading", "error", "loading"];
+type State = "default" | "vault" | "new" | "gratis" | "pass" | "overdue" | "card" | "canceling" | "incident" | "member" | "none" | "payfail" | "billing-error" | "billing-loading" | "error" | "loading";
+const STATES: State[] = ["vault", "new", "gratis", "pass", "overdue", "card", "canceling", "incident", "member", "none", "payfail", "billing-error", "billing-loading", "error", "loading"];
 
 function fixtureState(): State {
   if (typeof window === "undefined") return "default";
@@ -51,9 +54,15 @@ const LIMITS = {
   plus: { maxTeams: 128, maxRunning: null, maxOrganisers: 10, branding: true, checkIn: true, waitingList: true, export: true, matchDaySupport: true, invoice: true },
 };
 const PLANS: Record<PlanId, Plan> = {
-  gratis: { id: "gratis", name: "Gratis", price: 0, period: "forever", limits: LIMITS.gratis, wishlist: { maxLists: 3 } },
-  plus: { id: "plus", name: "Plus", price: 14900, period: "year", limits: LIMITS.plus, wishlist: { maxLists: null } },
+  gratis: { id: "gratis", name: "Planary Gratis", price: 0, period: "forever", limits: LIMITS.gratis, wishlist: { maxLists: 3 } },
+  plus: { id: "plus", name: "Planary Plus", price: 14900, period: "year", limits: LIMITS.plus, wishlist: { maxLists: null } },
 };
+const VAULT_PLANS: VaultPlan[] = [
+  { id: "free", name: "Vault Free", monthly: 0, yearly: 0, quotaGb: 10 },
+  { id: "plus", name: "Vault Plus", monthly: 400, yearly: 4000, quotaGb: 200 },
+  { id: "pro", name: "Vault Pro", monthly: 1000, yearly: 10000, quotaGb: 2048 },
+];
+const VAULT_FREE: VaultBilling = { plans: VAULT_PLANS, current: "free", period: null, payBy: null, renewsAt: null, cancelAt: null, pending: null };
 const PASS: Pass = { id: "tournament_pass", name: "Turnier-Pass", nameEn: "Tournament Pass", price: 2900, period: "tournament", limits: { ...LIMITS.plus, maxRunning: 1, matchDaySupport: false, invoice: false } };
 
 const MATTEO: Person = { id: "u_matteo", name: "Matteo Keller", email: "matteo.keller@gurtenlan.ch" };
@@ -262,6 +271,7 @@ function gurten(state: State): OrgStore {
       role,
       plan: PLANS.plus,
       services: ["tournament", "wishlist"],
+      kind: "team",
       renewsAt: at("2027-02-03T00:00:00+01:00"),
       billingState,
       activePasses: 0,
@@ -286,6 +296,7 @@ function gurten(state: State): OrgStore {
       reminderAt: at("2027-01-04T00:00:00+01:00"),
       graceUntil: overdue ? at("2026-11-07T00:00:00+01:00") : null,
       cancelAt: state === "canceling" ? at("2027-02-03T00:00:00+01:00") : null,
+      vault: VAULT_FREE,
     },
     members,
     invites: [{ id: "inv_luca", email: "luca.steiner@example.ch", role: "member", sentAt: at("2026-10-18T09:00:00+02:00") }],
@@ -340,6 +351,7 @@ function thun(kind: "new" | "gratis" | "pass" = "new"): OrgStore {
       role: "owner",
       plan: PLANS.gratis,
       services: ["tournament", "wishlist"],
+      kind: "team",
       renewsAt: null,
       billingState: "free",
       activePasses: passes.filter((x) => x.state === "active").length,
@@ -361,8 +373,67 @@ function thun(kind: "new" | "gratis" | "pass" = "new"): OrgStore {
       reminderAt: null,
       graceUntil: null,
       cancelAt: null,
+      vault: VAULT_FREE,
     },
     members: [{ ...LENA, email: LENA_MAIL, role: "owner", lastActive: NOW - 60_000, me: true }],
+    invites: [],
+    requests: [],
+  };
+}
+
+/** Noa's personal account: Vault Plus, monthly by card, one invoice a month. */
+function noaVault(): OrgStore {
+  const renews = at("2026-11-12T00:00:00+01:00");
+  const months = ["2026-08-12", "2026-09-12", "2026-10-12"];
+  return {
+    org: {
+      id: "org_noa",
+      name: NOA.name,
+      initials: "NB",
+      slug: "noa-brunner",
+      logoUrl: null,
+      role: "owner",
+      plan: PLANS.gratis,
+      services: [],
+      kind: "personal",
+      renewsAt: null,
+      billingState: "free",
+      activePasses: 0,
+      createdAt: at("2026-08-12T10:00:00+02:00"),
+      contact: { email: NOA.email, phone: "", address: [] },
+      usage: { tournamentsThisYear: 0, largestTournament: 0, organisers: 1 },
+      onboarding: { logo: false, team: false, tournament: false },
+      banners: [],
+      counts: { openRequests: 0, overdueInvoices: 0 },
+    },
+    tournaments: [],
+    wishlists: [],
+    invoices: months.reverse().map((m, i) => ({
+      id: `inv_v${i}`,
+      number: `2026-03${10 + i}`,
+      createdAt: at(`${m}T08:00:00+02:00`),
+      dueAt: null,
+      amount: 400,
+      currency: "CHF",
+      status: "paid",
+      description: "Vault Plus",
+      lines: [{ kind: "addon", name: "Vault Plus", period: "month", amount: 400, tournamentId: null }],
+      paidWith: "card",
+      overdueDays: 0,
+      pdfUrl: null,
+      payUrl: null,
+    })),
+    paymentMethod: { brand: "visa", last4: "1881", expMonth: 6, expYear: 2029, kind: "card" },
+    billing: {
+      lines: [{ kind: "addon", name: "Vault Plus", period: "month", amount: 400, tournamentId: null }],
+      passes: [],
+      payBy: null,
+      reminderAt: null,
+      graceUntil: null,
+      cancelAt: null,
+      vault: { plans: VAULT_PLANS, current: "plus", period: "month", payBy: "card", renewsAt: renews, cancelAt: null, pending: null },
+    },
+    members: [{ id: NOA.id, name: NOA.name, email: NOA.email, role: "owner", lastActive: NOW - 60_000, me: true }],
     invites: [],
     requests: [],
   };
@@ -374,6 +445,7 @@ function data() {
   const state = fixtureState();
   if (!db || db.state !== state) {
     if (state === "none") db = { state, me: NOA, stores: [], checkouts: {} };
+    else if (state === "vault") db = { state, me: NOA, stores: [noaVault()], checkouts: {} };
     else if (state === "new") db = { state, me: { ...LENA, email: LENA_MAIL }, stores: [thun("new")], checkouts: {} };
     else if (state === "gratis" || state === "pass" || state === "payfail") db = { state, me: { ...LENA, email: LENA_MAIL }, stores: [thun(state === "pass" ? "pass" : "gratis")], checkouts: {} };
     else db = { state, me: state === "member" ? NOA : MATTEO, stores: [gurten(state)], checkouts: {} };
@@ -447,6 +519,9 @@ function checkout(d: NonNullable<typeof db>, s: OrgStore, body: CheckoutBody): {
     id,
     orgId: s.org.id,
     kind: plan ? "plan" : "pass",
+    product: null,
+    productPlan: null,
+    period: null,
     state: failed ? "failed" : "paid",
     failure: failed ? "Deine Bank hat die Karte abgelehnt." : null,
     amount,
@@ -459,7 +534,7 @@ function checkout(d: NonNullable<typeof db>, s: OrgStore, body: CheckoutBody): {
   };
   if (!failed && plan) {
     s.org = { ...s.org, plan: PLANS.plus, renewsAt: NOW + YEAR, billingState: "active" };
-    s.billing = { ...s.billing, payBy, reminderAt: NOW + YEAR - 30 * 86_400_000, lines: [{ kind: "base", name: "Plus", period: "year", amount: PLANS.plus.price, tournamentId: null }, ...s.billing.lines] };
+    s.billing = { ...s.billing, payBy, reminderAt: NOW + YEAR - 30 * 86_400_000, lines: [{ kind: "base", name: "Planary Plus", period: "year", amount: PLANS.plus.price, tournamentId: null }, ...s.billing.lines] };
   }
   if (!failed && t) {
     const entitlement: PassEntitlement = { id: `pass_${id}`, tournamentId: t.id, tournamentName: t.name, boughtAt: NOW, amount: PASS.price, state: "active", teams: t.teams, invoiceId: null, receiptUrl: "https://org.planary.ch/files/invoices/2026-0221.pdf" };
@@ -486,7 +561,7 @@ export async function fixtureCall<T>(method: "GET" | "POST", rawPath: string, bo
   const ok = { ok: true } as T;
   try {
     if (method === "GET" && path === "/portal/me") {
-      const orgs: PortalOrgSummary[] = d.stores.map((s) => ({ id: s.org.id, name: s.org.name, initials: s.org.initials, role: s.org.role, plan: s.org.plan.id, services: s.org.services }));
+      const orgs: PortalOrgSummary[] = d.stores.map((s) => ({ id: s.org.id, name: s.org.name, initials: s.org.initials, role: s.org.role, plan: s.org.plan.id, services: s.org.services, kind: s.org.kind }));
       return { me: d.me, orgs } as T;
     }
     if (method === "POST" && path === "/portal/orgs") {

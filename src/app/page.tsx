@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { useEnableService } from "@/components/services";
 import { usePageBusy, usePortal } from "@/components/Shell";
 import { included, includedWishlist, planPrice, REQUEST_STATE, tourLabel, tourTeams, TOURNAMENT_STATE } from "@/components/status";
@@ -357,6 +359,20 @@ type TournamentsR = PortalApi["GET /portal/orgs/:id/tournaments"]["R"];
 type WishlistsR = PortalApi["GET /portal/orgs/:id/wishlists"]["R"];
 
 export default function OverviewPage() {
+  const { org } = usePortal();
+  // A personal account has nothing to organise: its page is the billing page.
+  if (org.kind === "personal") return <ToBilling />;
+  return <Overview />;
+}
+
+function ToBilling() {
+  const router = useRouter();
+  // The query stays (fixture mode keeps its state there).
+  useEffect(() => router.replace(`/abrechnung${window.location.search}`), [router]);
+  return null;
+}
+
+function Overview() {
   const { org, me } = usePortal();
   const t = now();
   const hasTournament = org.services.includes("tournament");
